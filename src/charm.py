@@ -35,7 +35,7 @@ class GatusCharm(ops.CharmBase):
                 SERVICE_NAME: {
                     "override": "replace",
                     "summary": "A service that runs in the workload container",
-                    "command": "/usr/local/bin/gatus",  # Change this!
+                    "command": "/usr/local/bin/gatus",
                     "startup": "enabled",
                 }
             }
