@@ -2,21 +2,14 @@
 # See LICENSE file for licensing details.
 
 name: gatus
-# see https://documentation.ubuntu.com/rockcraft/en/1.15.0/explanation/bases/
-# for more information about bases and using 'bare' bases for chiselled rocks
-base: bare # as an alternative, a ubuntu base can be used
-build-base: ubuntu@24.04 # build-base is required when the base is bare
-version: '0.6' # just for humans. Semantic versioning is recommended
+base: ubuntu@24.04
+version: '0.6'
 summary: "Gatus: Automated health and uptime monitoring tool for your services."
 description: |
     Gatus is an automated service health and uptime monitoring tool. It allows you to define endpoints to monitor, provides a real-time dashboard, and supports alerting via multiple channels when issues are detected. Gatus is designed to be simple to configure and deploy, making it ideal for ensuring the reliability of your services and infrastructure.
-# the platforms this rock should be built on and run on.
-# you can check your architecture with `dpkg --print-architecture`
 platforms:
     amd64:
-    # arm64:
-    # ppc64el:
-    # s390x:
+    arm64:
 
 services:
   gatus:
@@ -25,7 +18,6 @@ services:
     command: /usr/local/bin/gatus
     startup: enabled
 
-# uncomment the sections you need and adjust according to your requirements.
 parts:
   gatus:
     plugin: go

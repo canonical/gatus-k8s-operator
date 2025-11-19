@@ -46,22 +46,12 @@ log_cli_level = "INFO"
 
 # Linting tools configuration
 [tool.ruff]
-line-length = 99
+line-length = 120
 lint.select = ["E", "W", "F", "C", "N", "D", "I001"]
 lint.ignore = [
-    "D105",
-    "D107",
-    "D203",
-    "D204",
-    "D213",
-    "D215",
-    "D400",
-    "D404",
-    "D406",
-    "D407",
-    "D408",
-    "D409",
-    "D413",
+    "D107", # Missing docstring in `__init__`
+    "D203", # incorrect-blank-line-before-class (incompatible with D211)
+    "D213", # multi-line-summary-second-line (incompatible with D212)
 ]
 extend-exclude = ["__pycache__", "*.egg_info"]
 lint.per-file-ignores = {"tests/*" = ["D100","D101","D102","D103","D104"]}

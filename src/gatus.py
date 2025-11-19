@@ -11,10 +11,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-# Functions for interacting with the workload, for example over HTTP:
-
-
 def get_version() -> str | None:
     """Get the running version of the workload."""
-    # You'll need to implement this function (or remove it if not needed).
+    # TODO: Get actual version from the workload from the rock.
     return "v5.32.0"

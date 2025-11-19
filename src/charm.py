@@ -21,8 +21,8 @@ class GatusCharm(ops.CharmBase):
 
     def __init__(self, framework: ops.Framework):
         super().__init__(framework)
-        framework.observe(self.on["gatus"].pebble_ready, self._on_pebble_ready)
-        self.container = self.unit.get_container("gatus")
+        framework.observe(self.on[SERVICE_NAME].pebble_ready, self._on_pebble_ready)
+        self.container = self.unit.get_container(SERVICE_NAME)
 
     def _on_pebble_ready(self, event: ops.PebbleReadyEvent):
         """Handle pebble-ready event."""
