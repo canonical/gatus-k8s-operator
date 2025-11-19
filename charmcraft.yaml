@@ -1,20 +1,22 @@
 # This file configures Charmcraft.
 # See https://documentation.ubuntu.com/charmcraft/stable/reference/files/charmcraft-yaml-file/
 type: charm
-name: gatus
+name: gatus-k8s
 title: Gatus Health Check and Monitoring Charm
 summary: Deploy and manage Gatus, a powerful health check and monitoring service.
 description: |
-  Gatus is an automated health check and monitoring service designed to ensure the reliability and uptime of your applications and infrastructure.
+  Gatus is an automated health check and monitoring service designed to 
+  ensure the reliability and uptime of your applications and infrastructure.
 
-  This charm simplifies the deployment and management of Gatus on Kubernetes, providing seamless integration with Juju and automated configuration.
+  This charm simplifies the deployment and management of Gatus on Kubernetes, 
+  providing seamless integration with Juju and automated configuration.
 
-  Gatus continuously monitors endpoints, services, and APIs, alerting you to outages or performance issues before they impact users.
+  Gatus continuously monitors endpoints, services, and APIs, alerting you to 
+  outages or performance issues before they impact users.
 
-  Ideal for DevOps teams, SREs, and anyone responsible for maintaining service reliability in cloud-native environments.
+  Ideal for DevOps teams, SREs, and anyone responsible for maintaining service 
+  reliability in cloud-native environments.
 
-# Documentation:
-# https://documentation.ubuntu.com/charmcraft/stable/howto/build-guides/select-platforms/
 base: ubuntu@24.04
 platforms:
   amd64:
@@ -27,41 +29,11 @@ parts:
     build-snaps:
       - astral-uv
 
-# (Optional) Configuration options for the charm
-# This config section defines charm config options, and populates the Configure
-# tab on Charmhub.
-# More information on this section at:
-# https://documentation.ubuntu.com/charmcraft/stable/reference/files/charmcraft-yaml-file/#config
-# General configuration documentation:
-# https://documentation.ubuntu.com/juju/3.6/reference/configuration/#application-configuration
-config:
-  options:
-    # An example config option to customise the log level of the workload
-    log-level:
-      description: |
-        Configures the log level of Gatus.
-
-        Acceptable values are: "info", "debug", "warning", "error" and "critical"
-      default: "info"
-      type: string
-
-# Your workload's containers.
-# https://documentation.ubuntu.com/charmcraft/stable/reference/files/charmcraft-yaml-file/#containers
 containers:
-  gatus-container:
+  gatus:
     resource: gatus-image
 
-# This field populates the Resources tab on Charmhub.
-# https://documentation.ubuntu.com/charmcraft/stable/reference/files/charmcraft-yaml-file/#resources
 resources:
-  # An OCI image resource for each container listed above.
-  # You may remove this if your charm will run without a workload sidecar container.
   gatus-image:
     type: oci-image
     description: OCI image for the 'gatus' container
-    # The upstream-source field is ignored by Charmcraft and Juju, but it can be
-    # useful to developers in identifying the source of the OCI image.  It is also
-    # used by the 'canonical/charming-actions' GitHub action for automated releases.
-    # The test_deploy function in tests/integration/test_charm.py reads upstream-source
-    # to determine which OCI image to use when running the charm's integration tests.
-    upstream-source: ghcr.io/twin/gatus:stable

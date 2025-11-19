@@ -1,4 +1,4 @@
-# Copyright 2025 renan.greca@canonical.com
+# Copyright 2025 Canonical Ltd.
 # See LICENSE file for licensing details.
 
 """Functions for interacting with the workload.
@@ -17,4 +17,4 @@ logger = logging.getLogger(__name__)
 def get_version() -> str | None:
     """Get the running version of the workload."""
     # You'll need to implement this function (or remove it if not needed).
-    return None
+    return "v5.32.0"

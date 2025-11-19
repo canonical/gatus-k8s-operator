@@ -1,4 +1,4 @@
-# Copyright 2025 renan.greca@canonical.com
+# Copyright 2025 Canonical Ltd.
 # See LICENSE file for licensing details.
 #
 # The integration tests use the Jubilant library. See https://documentation.ubuntu.com/jubilant/

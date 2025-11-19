@@ -1,4 +1,4 @@
-# Copyright 2025 renan.greca@canonical.com
+# Copyright 2025 Canonical Ltd.
 # See LICENSE file for licensing details.
 #
 # To learn more about testing, see https://documentation.ubuntu.com/ops/latest/explanation/testing/
@@ -49,7 +49,7 @@ def test_pebble_ready(monkeypatch: pytest.MonkeyPatch):
         status=pebble.CheckStatus.UP,  # Simulate the Pebble check passing.
     )
     container_in = testing.Container(
-        "gatus-container",
+        "gatus",
         can_connect=True,
         layers={"base": layer},
         service_statuses={SERVICE_NAME: pebble.ServiceStatus.INACTIVE},
@@ -78,7 +78,7 @@ def test_pebble_ready_service_not_ready():
         status=pebble.CheckStatus.DOWN,  # Simulate the Pebble check failing.
     )
     container_in = testing.Container(
-        "gatus-container",
+        "gatus",
         can_connect=True,
         layers={"base": layer},
         service_statuses={SERVICE_NAME: pebble.ServiceStatus.INACTIVE},
