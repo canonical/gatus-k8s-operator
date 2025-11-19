@@ -12,12 +12,13 @@ import time
 
 import jubilant
 import pytest
+from pytest import FixtureRequest
 
 logger = logging.getLogger(__name__)
 
 
 @pytest.fixture(scope="module")
-def juju(request: pytest.FixtureRequest):
+def juju(request: FixtureRequest):
     """Create a temporary Juju model for running tests."""
     with jubilant.temp_model() as juju:
         yield juju
@@ -45,3 +46,24 @@ def charm():
         path_list = ", ".join(str(path) for path in charm_paths)
         raise ValueError(f"More than one .charm file in current directory: {path_list}")
     return charm_paths[0]
+
+
+@pytest.fixture(scope="session")
+def charm_resources(request: FixtureRequest) -> dict[str, str]:
+    """Prepare the OCI resources for the charm, read from option or env vars."""
+    gatus_image = request.config.getoption("--gatus-image")
+    if gatus_image:
+        return {
+            "gatus-image": gatus_image,
+        }
+
+    resource_name = os.environ.get("OCI_RESOURCE_NAME")
+    rock_image_uri = os.environ.get("ROCK_IMAGE")
+
+    if not resource_name or not rock_image_uri:
+        pytest.fail(
+            "Environment variables OCI_RESOURCE_NAME and/or ROCK_IMAGE are not set. "
+            # "Please set '--discourse-image' or run tests via 'make integration'."
+        )
+
+    return {resource_name: rock_image_uri}

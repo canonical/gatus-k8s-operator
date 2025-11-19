@@ -6,17 +6,35 @@
 
 import logging
 import pathlib
+from typing import NamedTuple
 
 import jubilant
+import pytest
 import yaml
 
 logger = logging.getLogger(__name__)
 
 METADATA = yaml.safe_load(pathlib.Path("charmcraft.yaml").read_text())
 
+class App(NamedTuple):
+    """Holds deployed application information for app_fixture."""
 
-def test_deploy(charm: pathlib.Path, juju: jubilant.Juju):
+    name: str
+
+
+def test_deploy(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[str, str]):
     """Deploy the charm under test."""
-    resources = {"gatus-image": METADATA["resources"]["gatus-image"]["upstream-source"]}
-    juju.deploy(charm.resolve(), app="gatus", resources=resources)
+    # TODO: How to deploy the charm with the built rock?
+    juju.deploy(charm.resolve(), app="gatus", resources=charm_resources)
     juju.wait(jubilant.all_active)
+
+
+# @pytest.mark.abort_on_fail
+# def test_active(app: App, juju: jubilant.Juju):
+#     """Check that the charm is active.
+#
+#     Assume that the charm has already been built and is running.
+#     """
+#     status = juju.status()
+#     assert status.apps[app.name].units[app.name + "/0"].is_active
+#
