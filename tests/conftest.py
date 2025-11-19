@@ -5,7 +5,7 @@
 
 def pytest_addoption(parser):
     """Add parser switches."""
-    parser.addoption("--discourse-image", action="store")
+    parser.addoption("--gatus-image", action="store")
 
 
 def pytest_configure(config):

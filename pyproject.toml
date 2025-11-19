@@ -30,6 +30,7 @@ unit = [
 integration = [
     "jubilant",
     "pytest",
+    "pytest-operator",
     "PyYAML",
 ]
 static = [

@@ -9,6 +9,7 @@ import pathlib
 from typing import NamedTuple
 
 import jubilant
+import pytest
 import yaml
 
 logger = logging.getLogger(__name__)
@@ -30,11 +31,13 @@ def test_deploy(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[
 
 
 # @pytest.mark.abort_on_fail
-# def test_active(app: App, juju: jubilant.Juju):
+# def test_active(juju: jubilant.Juju):
 #     """Check that the charm is active.
 #
 #     Assume that the charm has already been built and is running.
 #     """
 #     status = juju.status()
-#     assert status.apps[app.name].units[app.name + "/0"].is_active
-#
+#     print(status)
+#     assert False
+#     # assert status.apps["gatus"].units["gatus" + "/0"].is_active
+
