@@ -7,6 +7,7 @@ def pytest_addoption(parser):
     """Add parser switches."""
     parser.addoption("--discourse-image", action="store")
 
+
 def pytest_configure(config):
     """Add config options."""
     config.addinivalue_line("markers", "abort_on_fail")

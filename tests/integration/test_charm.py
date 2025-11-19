@@ -9,12 +9,12 @@ import pathlib
 from typing import NamedTuple
 
 import jubilant
-import pytest
 import yaml
 
 logger = logging.getLogger(__name__)
 
 METADATA = yaml.safe_load(pathlib.Path("charmcraft.yaml").read_text())
+
 
 class App(NamedTuple):
     """Holds deployed application information for app_fixture."""
