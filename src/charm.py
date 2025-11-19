@@ -27,7 +27,9 @@ class GatusCharm(ops.CharmBase):
     def _on_pebble_ready(self, event: ops.PebbleReadyEvent):
         """Handle pebble-ready event."""
         self.unit.status = ops.MaintenanceStatus("starting workload")
-        self.unit.open_port(protocol="tcp", port=8080)
+        self.container.replan()
+
+        self.unit.open_port(protocol="tcp", port=8080)  # Open a port for the workload.
         self.wait_for_ready()
         version = gatus.get_version()
         if version is not None:

@@ -17,8 +17,6 @@ METADATA = yaml.safe_load(pathlib.Path("charmcraft.yaml").read_text())
 
 def test_deploy(charm: pathlib.Path, juju: jubilant.Juju):
     """Deploy the charm under test."""
-    resources = {
-        "gatus-image": METADATA["resources"]["gatus-image"]["upstream-source"]
-    }
+    resources = {"gatus-image": METADATA["resources"]["gatus-image"]["upstream-source"]}
     juju.deploy(charm.resolve(), app="gatus", resources=resources)
     juju.wait(jubilant.all_active)
