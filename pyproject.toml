@@ -32,6 +32,13 @@ integration = [
     "pytest",
     "PyYAML",
 ]
+static = [
+    "bandit[toml]",
+]
+coverage_report = [
+    "pytest",
+    "coverage[toml]",
+]
 
 # Testing tools configuration
 [tool.coverage.run]
@@ -64,3 +71,8 @@ skip = "build,lib,venv,icon.svg,.tox,.git,.mypy_cache,.ruff_cache,.coverage"
 
 [tool.pyright]
 include = ["src", "tests"]
+
+[tool.bandit]
+exclude_dirs = ["/venv/"]
+[tool.bandit.assert_used]
+skips = ["*tests/*.py"]
