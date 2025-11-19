@@ -3,15 +3,15 @@
 type: charm
 name: gatus
 title: Gatus Health Check and Monitoring Charm
-summary: A very short one-line summary of the charm.
+summary: Deploy and manage Gatus, a powerful health check and monitoring service.
 description: |
-  A single sentence that says what the charm is, concisely and memorably.
+  Gatus is an automated health check and monitoring service designed to ensure the reliability and uptime of your applications and infrastructure.
 
-  A paragraph of one to three short sentences, that describe what the charm does.
+  This charm simplifies the deployment and management of Gatus on Kubernetes, providing seamless integration with Juju and automated configuration.
 
-  A third paragraph that explains what need the charm meets.
+  Gatus continuously monitors endpoints, services, and APIs, alerting you to outages or performance issues before they impact users.
 
-  Finally, a paragraph that describes whom the charm is useful for.
+  Ideal for DevOps teams, SREs, and anyone responsible for maintaining service reliability in cloud-native environments.
 
 # Documentation:
 # https://documentation.ubuntu.com/charmcraft/stable/howto/build-guides/select-platforms/
