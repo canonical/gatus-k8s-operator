@@ -2,7 +2,7 @@
 # See https://documentation.ubuntu.com/charmcraft/stable/reference/files/charmcraft-yaml-file/
 type: charm
 name: gatus
-title: Charm Template
+title: Gatus Health Check and Monitoring Charm
 summary: A very short one-line summary of the charm.
 description: |
   A single sentence that says what the charm is, concisely and memorably.
