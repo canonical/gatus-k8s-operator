@@ -6,6 +6,7 @@
 def pytest_addoption(parser):
     """Add parser switches."""
     parser.addoption("--gatus-image", action="store")
+    parser.addoption("--charm-file", action="store", default=None)
 
 
 def pytest_configure(config):
