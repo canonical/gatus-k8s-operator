@@ -27,20 +27,7 @@ class GatusCharm(ops.CharmBase):
     def _on_pebble_ready(self, event: ops.PebbleReadyEvent):
         """Handle pebble-ready event."""
         self.unit.status = ops.MaintenanceStatus("starting workload")
-        # layer: ops.pebble.LayerDict = {
-        #     "services": {
-        #         SERVICE_NAME: {
-        #             "override": "replace",
-        #             "summary": "A service that runs in the workload container",
-        #             "command": "/usr/local/bin/gatus",
-        #             "startup": "enabled",
-        #         }
-        #     }
-        # }
-        # self.container.add_layer("base", layer, combine=True)
-        # self.container.replan()
-
-        self.unit.open_port(protocol="tcp", port=8080)  # Open a port for the workload.
+        self.unit.open_port(protocol="tcp", port=8080)
         self.wait_for_ready()
         version = gatus.get_version()
         if version is not None:
@@ -49,7 +36,6 @@ class GatusCharm(ops.CharmBase):
 
     def is_ready(self) -> bool:
         """Check whether the workload is ready to use."""
-        # We'll first check whether all Pebble services are running.
         for name, service_info in self.container.get_services().items():
             if not service_info.is_running():
                 logger.info("the workload is not ready (service '%s' is not running)", name)
