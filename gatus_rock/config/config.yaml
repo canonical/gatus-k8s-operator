@@ -2,16 +2,16 @@
 #   type: postgres
 #   path: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB}?sslmode=disable"
 
-announcements:
-  - timestamp: 2025-08-15T14:00:00Z
-    type: outage
-    message: "Scheduled maintenance on database servers from 14:00 to 16:00 UTC"
-  - timestamp: 2025-08-15T16:15:00Z
-    type: operational
-    message: "Database maintenance completed successfully. All systems operational."
-  - timestamp: 2025-08-15T12:00:00Z
-    type: information
-    message: "New monitoring dashboard features will be deployed next week"
+# announcements:
+#   - timestamp: 2025-08-15T14:00:00Z
+#     type: outage
+#     message: "Scheduled maintenance on database servers from 14:00 to 16:00 UTC"
+#   - timestamp: 2025-08-15T16:15:00Z
+#     type: operational
+#     message: "Database maintenance completed successfully. All systems operational."
+#   - timestamp: 2025-08-15T12:00:00Z
+#     type: information
+#     message: "New monitoring dashboard features will be deployed next week"
 
 # alerting:
 #   mattermost:
@@ -20,62 +20,26 @@ announcements:
 #       insecure: true
 
 endpoints:
-  - name: Superset
-    group: Data Mesh
-    url: "https://superset.canonical.com"
+  - name: Ubuntu.com
+    group: Websites
+    url: "https://ubuntu.com"
     interval: 60s
     conditions:
       - "[STATUS] == 200"
       - "[RESPONSE_TIME] < 1000"
     alerts:
       - type: mattermost
-        description: "Superset is down"
+        description: "Ubuntu.com is down"
         send-on-resolved: true
 
-  - name: Trino
-    group: Data Mesh
-    url: "https://trino.canonical.com"
+  - name: GitHub
+    group: Websites
+    url: "https://github.com"
     interval: 60s
     conditions:
       - "[STATUS] == 200"
       - "[RESPONSE_TIME] < 1000"
     alerts:
       - type: mattermost
-        description: "Trino is down"
-        send-on-resolved: true
-
-  - name: Ranger
-    group: Data Mesh
-    url: "https://ranger.canonical.com/login.jsp"
-    interval: 60s
-    conditions:
-      - "[STATUS] == 200"
-      - "[RESPONSE_TIME] < 1000"
-    alerts:
-      - type: mattermost
-        description: "Trino is down"
-        send-on-resolved: true
-
-  - name: DataHub
-    group: Data Mesh
-    url: "https://datahub.canonical.com"
-    interval: 60s
-    conditions:
-      - "[STATUS] == 200"
-      - "[RESPONSE_TIME] < 1000"
-    alerts:
-      - type: mattermost
-        description: "DataHub is down"
-        send-on-resolved: true
-
-  - name: Airbyte
-    group: Data Mesh
-    url: "https://airbyte.canonical.com"
-    interval: 60s
-    conditions:
-      - "[STATUS] == 403"
-      - "[RESPONSE_TIME] < 1000"
-    alerts:
-      - type: mattermost
-        description: "Airbyte is down"
+        description: "GitHub is down"
         send-on-resolved: true
