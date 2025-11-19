@@ -19,5 +19,9 @@ jobs:
       self-hosted-runner: true
       self-hosted-runner-label: "xlarge"
       builder-runner-label: "xlarge"
+      # microk8s-addons enables specific MicroK8s addons for the test environment.
+      # metallb:10.15.119.2-10.15.119.4 configures MetalLB (bare metal load balancer) 
+      # with an IP address pool range, providing 3 IPs for LoadBalancer-type services.
+      # This private IP range (10.15.119.x) is suitable for isolated test environments.
       microk8s-addons: "dns ingress rbac storage metallb:10.15.119.2-10.15.119.4 registry"
       trivy-severity-config: CRITICAL
