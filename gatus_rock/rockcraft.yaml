@@ -1,3 +1,6 @@
+# Copyright 2025 Canonical Ltd.
+# See LICENSE file for licensing details.
+
 name: gatus
 # see https://documentation.ubuntu.com/rockcraft/en/1.15.0/explanation/bases/
 # for more information about bases and using 'bare' bases for chiselled rocks
