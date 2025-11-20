@@ -1,3 +1,6 @@
+# Copyright 2025 Canonical Ltd.
+# Licensed under the Apache2.0. See LICENSE file in charm source for details.
+
 """Library for the redis relation.
 
 This library contains the Requires and Provides classes for handling the
