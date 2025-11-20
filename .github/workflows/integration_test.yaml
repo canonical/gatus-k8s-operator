@@ -17,7 +17,5 @@ jobs:
       modules: '["test_charm.py"]'
       juju-channel: 3.6/stable
       self-hosted-runner: true
-      self-hosted-runner-label: "xlarge"
-      builder-runner-label: "xlarge"
-      microk8s-addons: "dns ingress rbac storage registry"
+      microk8s-addons: "ingress registry"
       trivy-severity-config: CRITICAL
