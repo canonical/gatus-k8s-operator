@@ -33,6 +33,8 @@ def juju(request: FixtureRequest):
 @pytest.fixture(scope="session")
 def charm():
     """Return the path of the charm under test."""
+    # charm_path = request.config.getoption("--charm-path")
+
     if "CHARM_PATH" in os.environ:
         charm_path = pathlib.Path(os.environ["CHARM_PATH"])
         if not charm_path.exists():
@@ -54,7 +56,7 @@ def charm_resources(request: FixtureRequest) -> dict[str, str]:
     gatus_image = request.config.getoption("--gatus-image")
     if gatus_image:
         return {
-            "gatus-image": gatus_image,
+            "app-image": gatus_image,
         }
 
     resource_name = os.environ.get("OCI_RESOURCE_NAME")

@@ -10,8 +10,4 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-
-def get_version() -> str | None:
-    """Get the running version of the workload."""
-    # TODO: Get actual version from the workload from the rock.
-    return "v5.32.0"
+# Placeholder file for now.

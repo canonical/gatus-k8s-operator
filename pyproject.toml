@@ -11,6 +11,7 @@ requires-python = ">=3.10"
 # dependencies of any charmlibs that the charm uses (copy the dependencies from PYDEPS).
 dependencies = [
     "ops>=3,<4",
+    "paas-charm>=1.9.1",
 ]
 
 [dependency-groups]
@@ -24,6 +25,7 @@ lint = [
 unit = [
     "coverage[toml]",
     "ops[testing]",
+    "paas-charm>=1.9.1",
     "pytest",
 ]
 # Dependencies of integration tests

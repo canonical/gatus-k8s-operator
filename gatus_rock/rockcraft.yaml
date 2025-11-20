@@ -3,16 +3,16 @@
 
 name: gatus
 base: ubuntu@24.04
-version: '0.6'
+version: '0.7'
 summary: "Gatus: Automated health and uptime monitoring tool for your services."
 description: |
     Gatus is an automated service health and uptime monitoring tool. It allows you to define endpoints to monitor, provides a real-time dashboard, and supports alerting via multiple channels when issues are detected. Gatus is designed to be simple to configure and deploy, making it ideal for ensuring the reliability of your services and infrastructure.
 platforms:
     amd64:
-    arm64:
+    # arm64:
 
 services:
-  gatus:
+  go:
     override: replace
     summary: Gatus service
     command: /usr/local/bin/gatus
@@ -34,6 +34,16 @@ parts:
     stage-packages:
       - bash
       - git
+
+  add-ca-certificates:
+    # This installs ca-certificates in the build env to populate our /etc/ssl/certs,
+    # then copies just the ca-certificates.crt to the final image
+    plugin: nil
+    build-packages: 
+      - ca-certificates
+    override-build: |-
+      mkdir -p $CRAFT_PART_INSTALL/etc/ssl/certs/
+      cp /etc/ssl/certs/ca-certificates.crt $CRAFT_PART_INSTALL/etc/ssl/certs/ca-certificates.crt
 
   config:
     plugin: dump
