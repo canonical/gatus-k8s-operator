@@ -1,3 +1,6 @@
+# Copyright 2025 Canonical Ltd.
+# See LICENSE file for licensing details.
+
 IMAGE_NAME := gatus-test:latest
 ROCK_PATH := gatus_rock
 
