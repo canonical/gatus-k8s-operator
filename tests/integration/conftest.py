@@ -63,7 +63,7 @@ def charm_resources(request: FixtureRequest) -> dict[str, str]:
     if not resource_name or not rock_image_uri:
         pytest.fail(
             "Environment variables OCI_RESOURCE_NAME and/or ROCK_IMAGE are not set. "
-            # "Please set '--discourse-image' or run tests via 'make integration'."
+            "Please set '--gatus-image' or run tests via 'make integration-test'."
         )
 
     return {resource_name: rock_image_uri}

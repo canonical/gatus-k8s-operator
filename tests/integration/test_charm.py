@@ -9,7 +9,6 @@ import pathlib
 from typing import NamedTuple
 
 import jubilant
-import pytest
 import yaml
 
 logger = logging.getLogger(__name__)
@@ -24,20 +23,12 @@ class App(NamedTuple):
 
 
 def test_deploy(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[str, str]):
-    """Deploy the charm under test."""
-    # TODO: How to deploy the charm with the built rock?
+    """Deploy the charm and check that the application is active.
+
+    This test uses an OCI image from a registry as the charm resource.
+    Thus, please ensure the --gatus-image option is set in the pytest command.
+    """
     juju.deploy(charm.resolve(), app="gatus", resources=charm_resources)
     juju.wait(jubilant.all_active)
-
-
-# @pytest.mark.abort_on_fail
-# def test_active(juju: jubilant.Juju):
-#     """Check that the charm is active.
-#
-#     Assume that the charm has already been built and is running.
-#     """
-#     status = juju.status()
-#     print(status)
-#     assert False
-#     # assert status.apps["gatus"].units["gatus" + "/0"].is_active
-
+    status = juju.status()
+    assert status.apps["gatus"].units["gatus" + "/0"].is_active

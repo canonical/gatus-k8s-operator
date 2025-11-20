@@ -30,15 +30,10 @@ unit = [
 integration = [
     "jubilant",
     "pytest",
-    "pytest-operator",
     "PyYAML",
 ]
 static = [
     "bandit[toml]",
-]
-coverage_report = [
-    "pytest",
-    "coverage[toml]",
 ]
 
 # Testing tools configuration
@@ -61,8 +56,8 @@ lint.ignore = [
     "D203", # incorrect-blank-line-before-class (incompatible with D211)
     "D213", # multi-line-summary-second-line (incompatible with D212)
 ]
-extend-exclude = ["__pycache__", "*.egg_info"]
 lint.per-file-ignores = {"tests/*" = ["D100","D101","D102","D103","D104"]}
+extend-exclude = ["__pycache__", "*.egg_info"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
