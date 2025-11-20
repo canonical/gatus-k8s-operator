@@ -1,4 +1,7 @@
 # Copyright 2025 Canonical Ltd.
+# Licensed under the Apache2.0. See LICENSE file in charm source for details.
+
+# Copyright 2025 Canonical Ltd.
 # See LICENSE file for licensing details.
 
 """Library to manage the http-proxy relation.
