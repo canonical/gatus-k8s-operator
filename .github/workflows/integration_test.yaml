@@ -22,3 +22,4 @@ jobs:
       self-hosted-runner: true
       microk8s-addons: "ingress registry"
       trivy-severity-config: CRITICAL
+      with-uv: true

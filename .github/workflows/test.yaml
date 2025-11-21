@@ -10,3 +10,4 @@
      secrets: inherit
      with:
       self-hosted-runner: true
+      with-uv: true
