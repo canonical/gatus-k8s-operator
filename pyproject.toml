@@ -4,14 +4,14 @@
 [project]
 name = "gatus"
 version = "0.0.1"
-requires-python = ">=3.10"
+requires-python = "==3.12.*"
 
 # Dependencies of the charm code
 # You should include the dependencies of the code in src/. You should also include the
 # dependencies of any charmlibs that the charm uses (copy the dependencies from PYDEPS).
 dependencies = [
-    "ops>=3,<4",
-    "paas-charm>=1.9.1",
+    "ops>=3.0.0,<3.1.0",
+    "paas-charm>=1.9.0,<1.10.0",
 ]
 
 [dependency-groups]

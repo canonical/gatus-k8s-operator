@@ -23,7 +23,6 @@ description: |
 base: ubuntu@24.04
 platforms:
   amd64:
-  # arm64:
 
 extensions:
   - go-framework
@@ -34,18 +33,3 @@ requires:
     optional: true
     limit: 1
 
-# parts:
-#   charm:
-#     plugin: uv
-#     source: .
-#     build-snaps:
-#       - astral-uv
-#
-# containers:
-#   app:
-#     resource: gatus-image
-#
-# resources:
-#   app-image:
-#     type: oci-image
-#     description: OCI image for the 'gatus' container
