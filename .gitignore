@@ -9,3 +9,4 @@ __pycache__/
 .idea
 .vscode/
 test-results.json
+lib/charms/
