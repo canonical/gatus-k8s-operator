@@ -1,0 +1,77 @@
+# Copyright 2025 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+[project]
+name = "gatus"
+version = "0.0.1"
+requires-python = "==3.12.*"
+
+# Dependencies of the charm code
+# You should include the dependencies of the code in src/. You should also include the
+# dependencies of any charmlibs that the charm uses (copy the dependencies from PYDEPS).
+dependencies = [
+    "ops>=3.0.0,<3.1.0",
+    "paas-charm>=1.9.0,<1.10.0",
+]
+
+[dependency-groups]
+# Dependencies of linting and static type checks
+lint = [
+    "ruff",
+    "codespell",
+    "pyright",
+]
+# Dependencies of unit tests
+unit = [
+    "coverage[toml]",
+    "ops[testing]",
+    "paas-charm>=1.9.1",
+    "pytest",
+]
+# Dependencies of integration tests
+integration = [
+    "jubilant",
+    "pytest",
+    "pytest-operator",
+    "PyYAML",
+]
+static = [
+    "bandit[toml]",
+]
+
+# Testing tools configuration
+[tool.coverage.run]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+log_cli_level = "INFO"
+
+# Linting tools configuration
+[tool.ruff]
+line-length = 120
+lint.select = ["E", "W", "F", "C", "N", "D", "I001"]
+lint.ignore = [
+    "D107", # Missing docstring in `__init__`
+    "D203", # incorrect-blank-line-before-class (incompatible with D211)
+    "D213", # multi-line-summary-second-line (incompatible with D212)
+]
+lint.per-file-ignores = {"tests/*" = ["D100","D101","D102","D103","D104"]}
+extend-exclude = ["__pycache__", "*.egg_info"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.codespell]
+skip = "build,lib,venv,icon.svg,.tox,.git,.mypy_cache,.ruff_cache,.coverage"
+
+[tool.pyright]
+include = ["src", "tests"]
+
+[tool.bandit]
+exclude_dirs = ["/venv/"]
+[tool.bandit.assert_used]
+skips = ["*tests/*.py"]

@@ -1,0 +1,13 @@
+venv/
+.venv/
+build/
+*.charm
+*.rock
+.tox/
+.coverage
+__pycache__/
+*.py[cod]
+.idea
+.vscode/
+test-results.json
+lib/charms/

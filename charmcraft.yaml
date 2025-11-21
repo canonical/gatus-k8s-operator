@@ -1,0 +1,35 @@
+# Copyright 2025 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+# This file configures Charmcraft.
+# See https://documentation.ubuntu.com/charmcraft/stable/reference/files/charmcraft-yaml-file/
+type: charm
+name: gatus-k8s
+title: Gatus Health Check and Monitoring Charm
+summary: Deploy and manage Gatus, a powerful health check and monitoring service.
+description: |
+  Gatus is an automated health check and monitoring service designed to 
+  ensure the reliability and uptime of your applications and infrastructure.
+
+  This charm simplifies the deployment and management of Gatus on Kubernetes, 
+  providing seamless integration with Juju and automated configuration.
+
+  Gatus continuously monitors endpoints, services, and APIs, alerting you to 
+  outages or performance issues before they impact users.
+
+  Ideal for DevOps teams, SREs, and anyone responsible for maintaining service 
+  reliability in cloud-native environments.
+
+base: ubuntu@24.04
+platforms:
+  amd64:
+
+extensions:
+  - go-framework
+
+requires:
+  postgresql:
+    interface: postgresql_client
+    optional: true
+    limit: 1
+
