@@ -36,12 +36,11 @@ config:
     #     Acceptable values are: "info", "debug", "warning", "error" and "critical"
     #   default: "info"
     #   type: string
-    sslmode:
+    jdbc-parameters:
       description: |
-        Configures the sslmode for connecting to the database.
-
-        Acceptable values are: "disable", "allow", "prefer", "require", "verify-ca" and "verify-full"
-      default: "disable"
+        Configures the JDBC parameters for connecting to Postgres, e.g. sslmode, targetServerType, etc.
+        See: https://jdbc.postgresql.org/documentation/use/
+      default: ""
       type: string
     endpoints:
       description: |
@@ -60,6 +59,13 @@ config:
     # mattermost-webhook-url:
     #   description: |
     #     Mattermost webhook URL to send alerts to.
+    #   type: string
+    #   default: ""
+    # juju-secrets:
+    #   description: |
+    #     YAML-structured list of Juju Secret IDs to pass to the application via environment variables.
+    #
+    #     Secret keys are converted from kebab-case to SCREAMING_SNAKE_CASE.
     #   type: string
     #   default: ""
 
