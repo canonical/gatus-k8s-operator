@@ -1,9 +1,10 @@
 # Copyright 2025 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-# storage:
-#   type: postgres
-#   path: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB}?sslmode=disable"
+storage:
+  type: postgres
+  # path: "postgres://${POSTGRESQL_DB_USERNAME}:${POSTGRESQL_DB_PASSWORD}@${POSTGRESQL_DB_HOSTNAME}:${POSTGRESQL_DB_PORT}/${POSTGRES_DB}?sslmode=disable"
+  path: "${POSTGRESQL_DB_CONNECT_STRING}"
 
 # announcements:
 #   - timestamp: 2025-08-15T14:00:00Z
@@ -46,3 +47,9 @@ endpoints:
       - type: mattermost
         description: "GitHub is down"
         send-on-resolved: true
+
+  - name: PostgreSQL
+    url: "tcp://${POSTGRESQL_DB_HOSTNAME}:${POSTGRESQL_DB_PORT}"
+    interval: 30s
+    conditions:
+      - "[CONNECTED] == true"

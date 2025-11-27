@@ -27,6 +27,42 @@ platforms:
 extensions:
   - go-framework
 
+config:
+  options:
+    # log-level:
+    #   description: |
+    #     Configures the log level of Gatus.
+    #
+    #     Acceptable values are: "info", "debug", "warning", "error" and "critical"
+    #   default: "info"
+    #   type: string
+    sslmode:
+      description: |
+        Configures the sslmode for connecting to the database.
+
+        Acceptable values are: "disable", "allow", "prefer", "require", "verify-ca" and "verify-full"
+      default: "disable"
+      type: string
+    endpoints:
+      description: |
+        List of endpoints to monitor.
+        YAML structured with an `endpoints` top-level key,
+        same as the standard Gatus configuration file.
+        See https://github.com/TwiN/gatus?tab=readme-ov-file#endpoints.
+      type: string
+    # announcements:
+    #   description: |
+    #     List of announcements to send.
+    #     YAML structured with an `announcements` top-level key,
+    #     same as the standard Gatus configuration file.
+    #     See https://github.com/TwiN/gatus?tab=readme-ov-file#announcements.
+    #   type: string
+    # mattermost-webhook-url:
+    #   description: |
+    #     Mattermost webhook URL to send alerts to.
+    #   type: string
+    #   default: ""
+
 requires:
   postgresql:
     interface: postgresql_client

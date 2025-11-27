@@ -33,7 +33,8 @@ integration-test: build-rock ## Run integration tests
 	tox -e integration -- --gatus-image localhost:32000/$(IMAGE_NAME)
 
 .PHONY: deploy
-deploy: pack ## Deploy charm
+deploy: # build-rock pack ## re-pack and re-deploy charm & rock
+	juju remove-application gatus-k8s --force
 	juju deploy ./$(CHARM_NAME)_amd64.charm --resource app-image=localhost:32000/$(IMAGE_NAME)
 
 .PHONY: publish
