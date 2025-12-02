@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 APP_NAME = "gatus-k8s"
 PG_APP_NAME = "postgresql-k8s"
+PG_STUB_NAME = "postgresql-stub"
 
 
 def test_deploy(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[str, str]):
@@ -42,10 +43,10 @@ def test_db_relation_stub(
     This test uses an OCI image from a registry as the charm resource.
     Thus, please ensure the --gatus-image option is set in the pytest command.
     """
-    juju.deploy(str(postgresql_stub), app=PG_APP_NAME)
+    juju.deploy(str(postgresql_stub), app=PG_STUB_NAME)
     juju.wait(jubilant.all_active, timeout=600)
 
-    juju.integrate(APP_NAME, PG_APP_NAME)
+    juju.integrate(APP_NAME, PG_STUB_NAME)
     juju.wait(jubilant.all_active, timeout=600, delay=10)
 
     gatus_config = get_config(juju, APP_NAME)

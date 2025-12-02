@@ -3,10 +3,10 @@ type: charm
 bases:
   - build-on:
     - name: ubuntu
-      channel: "24.04"
+      channel: "22.04"
     run-on:
     - name: ubuntu
-      channel: "24.04"
+      channel: "22.04"
 summary: A stub charm to mock postgres relations.
 description: |
   A lightweight charm that pretends to be Postgres 

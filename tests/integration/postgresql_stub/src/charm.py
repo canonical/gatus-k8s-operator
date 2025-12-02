@@ -1,5 +1,6 @@
-"""Stub charm mocking PostgreSQL for integration tests."""
 #!/usr/bin/env python3
+"""Stub charm mocking PostgreSQL for integration tests."""
+
 from ops.charm import CharmBase
 from ops.main import main
 from ops.model import ActiveStatus
@@ -8,6 +9,7 @@ class PostgresStub(CharmBase):
     def __init__(self, *args):
         super().__init__(*args)
         self.framework.observe(self.on.db_relation_joined, self._on_db_relation_joined)
+        self.unit.status = ActiveStatus("Started; awaiting relation")
 
     def _on_db_relation_joined(self, event):
         # This triggers immediately when you run `juju integrate`

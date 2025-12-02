@@ -7,7 +7,7 @@ set -euo pipefail
 
 CONFIG_DIR="/config"
 STORAGE_FILE="${CONFIG_DIR}/storage.yaml"
-ALERTS_FILE="${CONFIG_DIR}/alerts.yaml"
+ALERTS_FILE="${CONFIG_DIR}/alerting.yaml"
 ANNOUNCEMENTS_FILE="${CONFIG_DIR}/announcements.yaml"
 ENDPOINTS_FILE="${CONFIG_DIR}/endpoints.yaml"
 
@@ -31,26 +31,27 @@ fi
 
 # TODO: wip
 # If there is a Juju secret with the Mattermost webhook URL, use it to configure alerting
-if [[ -n "${MATTERMOST_WEBHOOK_URL:-}" ]]; then
-	cat > "$ALERTS_FILE" <<EOF
-alerting:
-  mattermost:
-    webhook-url: ${MATTERMOST_WEBHOOK_URL}
-    client:
-      insecure: true
-EOF
-fi
+# if [[ -n "${MATTERMOST_WEBHOOK_URL:-}" ]]; then
+# 	cat > "$ALERTS_FILE" <<EOF
+# alerting:
+#   mattermost:
+#     webhook-url: ${MATTERMOST_WEBHOOK_URL}
+#     client:
+#       insecure: true
+# EOF
+# fi
 
 # TODO: wip
 # If there is an app config with announcements, dump it into the announcements.yaml file
 if [[ -n "${APP_ANNOUNCEMENTS:-}" ]]; then
-	cat ${APP_ANNOUNCEMENTS} > "$ANNOUNCEMENTS_FILE"
+	echo "${APP_ANNOUNCEMENTS}" > "$ANNOUNCEMENTS_FILE"
 fi
 
 # TODO: wip
 # If there is an app config with endpoints, dump it into the endpoints.yaml file
 if [[ -n "${APP_ENDPOINTS:-}" ]]; then
-	cat ${APP_ENDPOINTS} > "$ENDPOINTS_FILE"
+	echo "Using endpoints from config"
+	echo "${APP_ENDPOINTS}" > "$ENDPOINTS_FILE"
 else
 	# Gatus requires at least one endpoint, so use a sample one
 	cat > "$ENDPOINTS_FILE" <<EOF

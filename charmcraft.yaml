@@ -49,6 +49,12 @@ config:
         same as the standard Gatus configuration file.
         See https://github.com/TwiN/gatus?tab=readme-ov-file#endpoints.
       type: string
+    juju-secret:
+      description: |
+        Juju Secret ID to pass to the application via environment variables.
+        Secret keys are converted from kebab-case to SCREAMING_SNAKE_CASE.
+      type: string
+      default: ""
     # announcements:
     #   description: |
     #     List of announcements to send.
@@ -59,13 +65,6 @@ config:
     # mattermost-webhook-url:
     #   description: |
     #     Mattermost webhook URL to send alerts to.
-    #   type: string
-    #   default: ""
-    # juju-secrets:
-    #   description: |
-    #     YAML-structured list of Juju Secret IDs to pass to the application via environment variables.
-    #
-    #     Secret keys are converted from kebab-case to SCREAMING_SNAKE_CASE.
     #   type: string
     #   default: ""
 
