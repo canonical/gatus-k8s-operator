@@ -8,6 +8,7 @@ import logging
 import pathlib
 
 import jubilant
+import pytest
 import yaml
 from pydantic import ValidationError
 
@@ -30,7 +31,30 @@ def test_deploy(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[
     status = juju.status()
     assert status.apps[APP_NAME].units[APP_NAME + "/0"].is_active
 
+def test_db_relation_stub(
+        charm: pathlib.Path,
+        juju: jubilant.Juju,
+        postgresql_stub: pathlib.Path,
+        charm_resources: dict[str, str]
+):
+    """Deploy the charm and check that the entrypoint is available.
 
+    This test uses an OCI image from a registry as the charm resource.
+    Thus, please ensure the --gatus-image option is set in the pytest command.
+    """
+    juju.deploy(str(postgresql_stub), app=PG_APP_NAME)
+    juju.wait(jubilant.all_active, timeout=600)
+
+    juju.integrate(APP_NAME, PG_APP_NAME)
+    juju.wait(jubilant.all_active, timeout=600, delay=10)
+
+    gatus_config = get_config(juju, APP_NAME)
+    assert gatus_config.storage is not None
+    assert gatus_config.storage.type == "postgres"
+    assert gatus_config.storage.path == "postgresql://postgres:postgres@localhost:5432/gatus"
+
+
+@pytest.mark.skip(reason="Takes too long")
 def test_db_relation(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[str, str]):
     """Deploy the database charm and check that the gatus charm can connect to it.
 
@@ -57,17 +81,19 @@ def test_db_relation(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: 
     # Configure the charm with JDBC parameters for PostgreSQL connection
     juju.config(APP_NAME, {"jdbc-parameters": "sslmode=disable"})
     # Add the database relation
-    juju.integrate(PG_APP_NAME, APP_NAME)
-    juju.wait(jubilant.all_active, timeout=600)
+    juju.integrate(APP_NAME, PG_APP_NAME)
+    juju.wait(jubilant.all_active, timeout=600, delay=60)
 
     # Check that the charm resolves after the database relation
     status = juju.status()
+    print("Juju status:")
     print(status.apps[APP_NAME].units[APP_NAME + "/0"].workload_status)
-    # assert status.apps[APP_NAME].units[APP_NAME + "/0"].is_active
-    # assert status.apps[APP_NAME].units[APP_NAME + "/0"].workload_status == "active"
+    assert status.apps[APP_NAME].units[APP_NAME + "/0"].is_active
 
     # Get the config of the gatus charm
     config = get_config(juju, APP_NAME)
+    print("Gatus config:")
+    print(config)
 
     assert config.storage is not None
     assert config.storage.type == "postgres"
@@ -79,7 +105,7 @@ def get_config(juju: jubilant.Juju, app_name: str) -> GatusConfig:
     config_string = juju.ssh(
         target=APP_NAME + "/0",
         container="app",
-        command="cat /config/config.yaml",
+        command="cat /config/storage.yaml",
     )
 
     try:

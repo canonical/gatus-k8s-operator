@@ -7,8 +7,10 @@
 import logging
 import os
 import pathlib
+import subprocess
 import sys
 import time
+from pathlib import Path
 
 import jubilant
 import pytest
@@ -48,6 +50,14 @@ def charm():
         path_list = ", ".join(str(path) for path in charm_paths)
         raise ValueError(f"More than one .charm file in current directory: {path_list}")
     return charm_paths[0]
+
+@pytest.fixture(scope="module")
+def postgresql_stub():
+    """Builds the stub charm."""
+    stub_path = Path("tests/integration/postgresql_stub")
+    subprocess.check_call(["charmcraft", "pack", "--quiet"], cwd=stub_path)
+    stub_file = next(stub_path.glob("*.charm"))
+    return stub_file.resolve()
 
 
 @pytest.fixture(scope="session")

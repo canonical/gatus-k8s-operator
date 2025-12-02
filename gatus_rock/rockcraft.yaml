@@ -3,7 +3,7 @@
 
 name: gatus
 base: ubuntu@24.04
-version: '0.6'
+version: '0.15'
 summary: "Gatus: Automated health and uptime monitoring tool for your services."
 description: |
     Gatus is an automated service health and uptime monitoring tool. It allows you to define endpoints to monitor, provides a real-time dashboard, and supports alerting via multiple channels when issues are detected. Gatus is designed to be simple to configure and deploy, making it ideal for ensuring the reliability of your services and infrastructure.
@@ -14,10 +14,18 @@ services:
   go:
     override: replace
     summary: Gatus service
-    command: /usr/local/bin/gatus
+    command: /gatus/gatus_wrapper.sh
+    working-dir: /gatus
     startup: enabled
 
 parts:
+  # go-deps:
+  #   plugin: nil
+  #   build-snaps:
+  #     - go/1.25/stable
+  #   override-build: |
+  #     true
+
   gatus:
     plugin: go
     source: https://github.com/TwiN/gatus
@@ -25,9 +33,10 @@ parts:
     source-tag: v5.32.0
     source-depth: 1
     organize:
-      bin/gatus: usr/local/bin/gatus
+      bin/gatus: gatus/bin/gatus
     build-snaps:
-     - go/1.22/stable
+      - go/1.25/stable
+    # after: [go-deps]
     build-environment:
       - CGO_ENABLED: "0"
     stage-packages:
@@ -44,10 +53,10 @@ parts:
       mkdir -p $CRAFT_PART_INSTALL/etc/ssl/certs/
       cp /etc/ssl/certs/ca-certificates.crt $CRAFT_PART_INSTALL/etc/ssl/certs/ca-certificates.crt
 
-  # config:
-  #   plugin: dump
-  #   source: ./config
-  #   organize:
-  #     '*': config/
-  #   stage:
-  #     - config
+  copy-files:
+    plugin: dump
+    source: .
+    organize:
+      gatus_wrapper.sh: gatus/gatus_wrapper.sh
+    stage:
+      - gatus

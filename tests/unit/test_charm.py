@@ -14,13 +14,8 @@ from gatus import GatusConfig
 logger = logging.getLogger(__name__)
 
 
-def test_sample():
-    """Sample test for the suite."""
-    assert True
-
-
 def test_gatus_config():
-    """Test that the gatus_config_parse function works as expected."""
+    """Test that the GatusConfig class correctly reflects the config.yaml file."""
     with open("tests/unit/data/config.yaml", "r") as f:
         config_string = f.read()
 

@@ -36,49 +36,49 @@ class GatusCharm(paas_charm.go.Charm):
         super().__init__(*args)
 
         # Add observers to trigger config updates
-        self.framework.observe(self.on.postgresql_relation_changed, self._on_db_relation_changed)
+        # self.framework.observe(self.on.postgresql_relation_changed, self._on_db_relation_changed)
         # self.framework.observe(self.on.gatus_pebble_ready, self._update_config)
         # self.framework.observe(self.on.postgresql_relation_changed, self._update_config)
         # self.framework.observe(self.on.postgresql_relation_departed, self._update_config)
 
-    def _get_container(self, event) -> ops.model.Container | None:
-        """Get the container if it is available."""
-        container = self.unit.get_container(CONTAINER_NAME)
-        if not container.can_connect():
-            logger.info("Pebble is not ready yet, deferring config update")
-            event.defer()
-            return
-
-        return container
-
-    def _on_pebble_ready(self, event):
-        """Override the default _on_pebble_ready."""
-        logger.info("_on_pebble_ready")
-        container = self._get_container(event)
-        if not container:
-            return
-
-        self._write_gatus_config(container)
-        super()._on_pebble_ready(event)
-
-    def _on_config_changed(self, event):
-        """Override the default _on_config_changed."""
-        logger.info("_on_config_changed")
-        container = self._get_container(event)
-        if not container:
-            return
-
-        self._write_gatus_config(container)
-        super()._on_config_changed(event)
-
-    def _on_db_relation_changed(self, event):
-        """Update Postgres relation data."""
-        logger.info("_on_db_relation_changed triggered")
-        container = self._get_container(event)
-        if not container:
-            return
-
-        self._write_gatus_config(container)
+    # def _get_container(self, event) -> ops.model.Container | None:
+    #     """Get the container if it is available."""
+    #     container = self.unit.get_container(CONTAINER_NAME)
+    #     if not container.can_connect():
+    #         logger.info("Pebble is not ready yet, deferring config update")
+    #         event.defer()
+    #         return
+    #
+    #     return container
+    #
+    # def _on_pebble_ready(self, event):
+    #     """Override the default _on_pebble_ready."""
+    #     logger.info("_on_pebble_ready")
+    #     container = self._get_container(event)
+    #     if not container:
+    #         return
+    #
+    #     self._write_gatus_config(container)
+    #     super()._on_pebble_ready(event)
+    #
+    # def _on_config_changed(self, event):
+    #     """Override the default _on_config_changed."""
+    #     logger.info("_on_config_changed")
+    #     container = self._get_container(event)
+    #     if not container:
+    #         return
+    #
+    #     self._write_gatus_config(container)
+    #     super()._on_config_changed(event)
+    #
+    # def _on_db_relation_changed(self, event):
+    #     """Update Postgres relation data."""
+    #     logger.info("_on_db_relation_changed triggered")
+    #     container = self._get_container(event)
+    #     if not container:
+    #         return
+    #
+    #     self._write_gatus_config(container)
 
     def _write_gatus_config(self, container):
         config = self.model.config
@@ -87,7 +87,7 @@ class GatusCharm(paas_charm.go.Charm):
         gatus_config = {}
 
         rel = self.model.get_relation("postgresql")
-        logger.info("Gatus relation: %s", rel)
+        logger.info("Gatus postgresql relation: %s", rel)
         if rel and rel.data.get(rel.app):
             path = "${POSTGRESQL_DB_CONNECT_STRING}"
             jdbc_parameters = str(config.get("jdbc-parameters", ""))
