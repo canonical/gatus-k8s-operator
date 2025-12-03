@@ -43,7 +43,7 @@ deploy: build-rock pack ## re-pack and re-deploy charm & rock
 	juju deploy ./$(CHARM_FILE) \
 		--resource app-image=$(REGISTRY)/$(ROCK_IMAGE)
 
-.PHONY: refresh 
+.PHONY: refresh
 refresh: build-rock pack ## re-pack and re-deploy charm & rock
 	juju refresh $(CHARM_NAME) \
 		--path ./$(CHARM_FILE) \
