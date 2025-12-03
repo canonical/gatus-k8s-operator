@@ -34,11 +34,11 @@ build-rock:
 		docker://$(REGISTRY)/$(ROCK_IMAGE)
 
 .PHONY: integration-test
-integration-test: ## Run integration tests
+integration-test: pack ## Run integration tests
 	tox -e integration -- --gatus-image $(REGISTRY)/$(ROCK_IMAGE)
 
 .PHONY: deploy
-deploy: # build-rock pack ## re-pack and re-deploy charm & rock
+deploy: build-rock pack ## re-pack and re-deploy charm & rock
 	juju remove-application gatus-k8s --force
 	juju deploy ./$(CHARM_FILE) \
 		--resource app-image=$(REGISTRY)/$(ROCK_IMAGE) \

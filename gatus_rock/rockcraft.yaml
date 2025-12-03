@@ -3,7 +3,7 @@
 
 name: gatus
 base: ubuntu@24.04
-version: '0.1'
+version: '0.2'
 summary: "Gatus: Automated health and uptime monitoring tool for your services."
 description: |
     Gatus is an automated service health and uptime monitoring tool. It allows you to define endpoints to monitor, provides a real-time dashboard, and supports alerting via multiple channels when issues are detected. Gatus is designed to be simple to configure and deploy, making it ideal for ensuring the reliability of your services and infrastructure.
@@ -19,13 +19,6 @@ services:
     startup: enabled
 
 parts:
-  # go-deps:
-  #   plugin: nil
-  #   build-snaps:
-  #     - go/1.25/stable
-  #   override-build: |
-  #     true
-
   gatus:
     plugin: go
     source: https://github.com/TwiN/gatus
@@ -36,7 +29,6 @@ parts:
       bin/gatus: gatus/bin/gatus
     build-snaps:
       - go/1.25/stable
-    # after: [go-deps]
     build-environment:
       - CGO_ENABLED: "0"
     stage-packages:

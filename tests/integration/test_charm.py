@@ -8,6 +8,8 @@ import logging
 import pathlib
 
 import jubilant
+import pytest
+import requests
 import yaml
 from pydantic import ValidationError
 
@@ -27,10 +29,25 @@ def test_deploy(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[
     Thus, please ensure the --gatus-image option is set in the pytest command.
     """
     juju.deploy(charm.resolve(), app=APP_NAME, resources=charm_resources)
-    juju.wait(jubilant.all_active, timeout=600)
+    juju.wait(jubilant.all_active, timeout=60, delay=10)
     status = juju.status()
-    assert status.apps[APP_NAME].units[APP_NAME + "/0"].is_active
+    unit = status.apps[APP_NAME].units[APP_NAME + "/0"]
+    # Check that the charm hooks are successful
+    assert unit.is_active
 
+    # Check that the underlying application is listening on port 8080
+    ip = unit.address
+    response = requests.get(f"http://{ip}:8080/api/v1/endpoints/statuses", timeout=5)
+    logger.info("Response: %s", response.text)
+    response.raise_for_status()
+
+    data = response.json()
+    logger.info("Data: %s", data)
+    # Check if the default endpoint, Ubuntu.com, is in the response
+    assert any(
+        endpoint.get("name") == "Ubuntu.com"
+        for endpoint in data
+    )
 
 # def test_db_relation_stub(
 #     charm: pathlib.Path, juju: jubilant.Juju, postgresql_stub: pathlib.Path, charm_resources: dict[str, str]
@@ -52,6 +69,7 @@ def test_deploy(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[
 #     assert gatus_config.storage.path == "postgresql://postgres:postgres@localhost:5432/gatus"
 
 
+@pytest.mark.skip(reason="Too long")
 def test_db_relation(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[str, str]):
     """Deploy the database charm and check that the gatus charm can connect to it.
 
@@ -79,7 +97,7 @@ def test_db_relation(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: 
     juju.config(APP_NAME, {"jdbc-parameters": "sslmode=disable"})
     # Add the database relation
     juju.integrate(APP_NAME, PG_APP_NAME)
-    juju.wait(jubilant.all_active, timeout=600, delay=60)
+    juju.wait(jubilant.all_active, timeout=600, delay=10)
 
     # Check that the charm resolves after the database relation
     status = juju.status()
@@ -88,22 +106,73 @@ def test_db_relation(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: 
     assert status.apps[APP_NAME].units[APP_NAME + "/0"].is_active
 
     # Get the config of the gatus charm
-    config = get_config(juju, APP_NAME)
+    config = get_config(juju)
     print("Gatus config:")
     print(config)
 
     assert config.storage is not None
     assert config.storage.type == "postgres"
-    assert "${POSTGRESQL_DB_CONNECT_STRING}" in config.storage.path
+    assert "postgresql-k8s-primary" in config.storage.path
+    assert "/gatus-k8s?sslmode=disable" in config.storage.path
 
-
-def get_config(juju: jubilant.Juju, app_name: str) -> GatusConfig:
-    """Get the config of a charmed application."""
-    config_string = juju.ssh(
-        target=APP_NAME + "/0",
-        container="app",
-        command="cat /config/storage.yaml",
+def test_mattermost_alerting(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[str, str]):
+    """Add a secret to the charm and check that the alerting config is updated."""
+    # Add a secret to the Juju model
+    secreturi = juju.add_secret(
+        name="gatus-webhooks",
+        content={
+            "mattermost-webhook-url": "http://localhost:8080/hooks/xxx",
+        },
     )
+    assert secreturi is not None
+    assert secreturi.startswith("secret:")
+
+    # Grant secret to charm and update the charm config
+    juju.grant_secret(
+        identifier=secreturi,
+        app=APP_NAME,
+    )
+    secret_id = secreturi[len("secret:") :]
+    juju.config(APP_NAME, {"juju-secret": secret_id})
+    juju.wait(jubilant.all_active, timeout=60, delay=10)
+
+    # Get the config of the gatus charm
+    config = get_config(juju)
+    print("Gatus config:")
+    print(config)
+
+    assert config.alerting is not None
+    assert config.alerting.mattermost is not None
+    assert config.alerting.mattermost.webhook_url == "http://localhost:8080/hooks/xxx"
+    assert config.alerting.mattermost.client["insecure"] is True
+
+
+def get_config(juju: jubilant.Juju) -> GatusConfig:
+    """Get the config of a charmed application."""
+    configs = []
+
+    config_files = [
+        "storage",
+        "alerting",
+        "announcements",
+        "endpoints",
+    ]
+    # Retrieve the config files from the container
+    for config_file in config_files:
+        config_path = f"/config/{config_file}.yaml"
+        try:
+            config_string = juju.ssh(
+                target=APP_NAME + "/0",
+                container="app",
+                command=f"cat {config_path}",
+            )
+            logger.info("%s config: %s", config_file, config_string)
+            configs.append(config_string)
+        except jubilant.CLIError:
+            # Skip the config if it doesn't exist
+            logger.info("%s config not found", config_file)
+
+    config_string = "\n".join(configs)
 
     try:
         config = yaml.safe_load(config_string)

@@ -15,13 +15,13 @@ mkdir -p "$CONFIG_DIR"
 
 # If there is a PostgreSQL database relation, use it to configure the storage
 if [[ -n "${POSTGRESQL_DB_CONNECT_STRING:-}" ]]; then
-	if [[ -n "${APP_JDBC_PARAMETERS}" ]]; then
+	if [[ -n "${APP_JDBC_PARAMETERS:-}" ]]; then
 		jdbc_params="?${APP_JDBC_PARAMETERS}"
 	fi
 	
 	cat > "$STORAGE_FILE" <<EOF
 storage:
-  path: ${POSTGRESQL_DB_CONNECT_STRING}${jdbc_params}
+  path: ${POSTGRESQL_DB_CONNECT_STRING}${jdbc_params:-}
   type: postgres
 EOF
 
@@ -31,15 +31,17 @@ fi
 
 # TODO: wip
 # If there is a Juju secret with the Mattermost webhook URL, use it to configure alerting
-# if [[ -n "${MATTERMOST_WEBHOOK_URL:-}" ]]; then
-# 	cat > "$ALERTS_FILE" <<EOF
-# alerting:
-#   mattermost:
-#     webhook-url: ${MATTERMOST_WEBHOOK_URL}
-#     client:
-#       insecure: true
-# EOF
-# fi
+if [[ -n "${MATTERMOST_WEBHOOK_URL:-}" ]]; then
+	cat > "$ALERTS_FILE" <<EOF
+alerting:
+  mattermost:
+    webhook-url: ${MATTERMOST_WEBHOOK_URL}
+    client:
+      insecure: true
+EOF
+else
+	echo "MATTERMOST_WEBHOOK_URL is not set"
+fi
 
 # TODO: wip
 # If there is an app config with announcements, dump it into the announcements.yaml file

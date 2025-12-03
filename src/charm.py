@@ -11,6 +11,8 @@ import ops
 import paas_charm.go
 import yaml
 
+from gatus import GatusConfig
+
 # from charms.data_platform_libs.v0.data_interfaces import (
 #     DatabaseCreatedEvent,
 #     DatabaseEndpointsChangedEvent,
@@ -35,6 +37,8 @@ class GatusCharm(paas_charm.go.Charm):
         """
         super().__init__(*args)
 
+        self.framework.observe(self.on.app_pebble_ready, self._update)
+        self.framework.observe(self.on.config_changed, self._update)
         # Add observers to trigger config updates
         # self.framework.observe(self.on.postgresql_relation_changed, self._on_db_relation_changed)
         # self.framework.observe(self.on.gatus_pebble_ready, self._update_config)
@@ -51,104 +55,32 @@ class GatusCharm(paas_charm.go.Charm):
 
         return container
 
-    #
-    # def _on_pebble_ready(self, event):
-    #     """Override the default _on_pebble_ready."""
-    #     logger.info("_on_pebble_ready")
-    #     container = self._get_container(event)
-    #     if not container:
-    #         return
-    #
-    #     self._write_gatus_config(container)
-    #     super()._on_pebble_ready(event)
-    #
-    def _on_config_changed(self, event):
-        """Override the default _on_config_changed."""
-        logger.info("_on_config_changed")
+    def _update(self, event):
         container = self._get_container(event)
         if not container:
             return
-
-        self._write_gatus_config(container)
-        super()._on_config_changed(event)
-
-    #
-    # def _on_db_relation_changed(self, event):
-    #     """Update Postgres relation data."""
-    #     logger.info("_on_db_relation_changed triggered")
-    #     container = self._get_container(event)
-    #     if not container:
-    #         return
-    #
-    #     self._write_gatus_config(container)
-
-    def _write_gatus_config(self, container):
         config = self.model.config
         logger.info("Gatus config: %s", config)
 
-        self._alerting_config(container, config)
+        self._update_env(container)
 
-        # rel = self.model.get_relation("postgresql")
-        # logger.info("Gatus postgresql relation: %s", rel)
-        # if rel and rel.data.get(rel.app):
-        #     path = "${POSTGRESQL_DB_CONNECT_STRING}"
-        #     jdbc_parameters = str(config.get("jdbc-parameters", ""))
-        #     if len(jdbc_parameters) > 0:
-        #         path = f"{path}?{jdbc_parameters}"
-        #     gatus_config["storage"] = {
-        #         "type": "postgres",
-        #         "path": path,
-        #     }
-        #     # data = rel.data[rel.app]
-
-        # gatus_config["endpoints"] = [
-        #     {
-        #         "name": "Ubuntu.com",
-        #         "group": "Websites",
-        #         "url": "https://ubuntu.com",
-        #         "interval": "60s",
-        #         "conditions": ["[STATUS] == 200", "[RESPONSE_TIME] < 1000"],
-        #     },
-        # ]
-        # container.push("/config/config.yaml", yaml.dump(gatus_config), make_dirs=True)
-
-        # container.push("/config/storage.yaml", yaml.dump(gatus_config), make_dirs=True)
-        #
-        # # Construct the full Gatus Configuration
-        # gatus_config = {}
-        # gatus_config["endpoints"] = [
-        #     {
-        #         "name": "Ubuntu.com",
-        #         "group": "Websites",
-        #         "url": "https://ubuntu.com",
-        #         "interval": "60s",
-        #         "conditions": ["[STATUS] == 200", "[RESPONSE_TIME] < 1000"],
-        #     },
-        # ]
-        #
-        # container.push("/config/endpoints.yaml", yaml.dump(gatus_config), make_dirs=True)
-
-        # 4. Signal Pebble to restart if the layer/service is managed manually
-        # Note: The Go framework extension usually handles the layer + restart automatically
-        # based on env vars. Since we updated a file, we might need to force a restart
-        # if the framework doesn't detect a layer change.
         try:
             container.restart(SERVICE_NAME)
         except ops.pebble.ChangeError:
-            # Service might not be running yet, which is fine
             pass
 
-    def _alerting_config(self, container, config):
-        logger.info("Updating alerting config")
-        gatus_config = {}
+    def _get_mattermost_webhook_url(self) -> ops.Secret | None:
+        """Get the secret contents based on the charm config."""
+        secret_config = "juju-secret"
+        config = self.model.config
 
-        if "juju-secret" not in config:
-            logger.info("No juju-secret in config")
+        if secret_config not in config:
+            logger.info("No '%s' in config", secret_config)
             return
 
-        secret_id = config["juju-secret"]
+        secret_id = config[secret_config]
         if not secret_id:
-            logger.info("No juju-secret id in config")
+            logger.info("No '%s' in config", secret_config)
             return
 
         secret = self.model.get_secret(id=secret_id)
@@ -161,20 +93,30 @@ class GatusCharm(paas_charm.go.Charm):
             logger.info("No mattermost-webhook-url in secret")
             return
 
-        gatus_config["alerting"] = {
-            "mattermost": {
-                "webhook-url": content["mattermost-webhook-url"],
-                "client": {
-                    "insecure": True,
-                },
+        return content["mattermost-webhook-url"]
+
+    def _update_env(self, container):
+        """Create a pebble layer to add environment variables to the container.
+
+        This is necessary for handling Juju secrets.
+        """
+        env = {}
+
+        mattermost_webhook_url = self._get_mattermost_webhook_url()
+        if mattermost_webhook_url:
+            env["MATTERMOST_WEBHOOK_URL"] = mattermost_webhook_url
+
+        env_layer = {
+            "services": {
+                "go": {
+                    "override": "merge",
+                    "environment": env
+                }
             }
         }
-
-        container.push(
-            "/config/alerting.yaml",
-            yaml.dump(gatus_config),
-            make_dirs=True,
-        )
+        # combine=True allows this layer to sit on top of the framework's layer
+        container.add_layer("go-env-layer", env_layer, combine=True)
+        container.replan()
 
 
 if __name__ == "__main__":  # pragma: nocover

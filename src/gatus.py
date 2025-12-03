@@ -69,3 +69,16 @@ class GatusConfig(BaseModel):
     announcements: list[Announcement] | None = None
     alerting: Alerting | None = None
     endpoints: list[Endpoint] | None = None
+
+    def alerting_config(self, secret_content: dict) -> dict:
+        """Return the alerting config."""
+        if "mattermost-webhook-url" not in secret_content:
+            logger.info("No mattermost-webhook-url in secret")
+            return
+
+        self.alerting = Alerting(
+            mattermost = {
+                "webhook-url": secret_content["mattermost-webhook-url"],
+                "client": {"insecure": True},
+            }
+        )
