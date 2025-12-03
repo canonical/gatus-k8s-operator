@@ -9,9 +9,6 @@ import typing
 
 import ops
 import paas_charm.go
-import yaml
-
-from gatus import GatusConfig
 
 # from charms.data_platform_libs.v0.data_interfaces import (
 #     DatabaseCreatedEvent,
@@ -37,6 +34,7 @@ class GatusCharm(paas_charm.go.Charm):
         """
         super().__init__(*args)
 
+        # self.actions_observer = actions.Observer(self)
         self.framework.observe(self.on.app_pebble_ready, self._update)
         self.framework.observe(self.on.config_changed, self._update)
         # Add observers to trigger config updates
@@ -69,18 +67,18 @@ class GatusCharm(paas_charm.go.Charm):
         except ops.pebble.ChangeError:
             pass
 
-    def _get_mattermost_webhook_url(self) -> ops.Secret | None:
+    def _get_mattermost_webhook_url(self) -> str | None:
         """Get the secret contents based on the charm config."""
-        secret_config = "juju-secret"
+        juju_secret = "juju-secret"  # nosec: B105
         config = self.model.config
 
-        if secret_config not in config:
-            logger.info("No '%s' in config", secret_config)
+        if juju_secret not in config:
+            logger.info("No '%s' in config", juju_secret)
             return
 
-        secret_id = config[secret_config]
+        secret_id = str(config[juju_secret])
         if not secret_id:
-            logger.info("No '%s' in config", secret_config)
+            logger.info("No '%s' in config", juju_secret)
             return
 
         secret = self.model.get_secret(id=secret_id)
@@ -106,14 +104,11 @@ class GatusCharm(paas_charm.go.Charm):
         if mattermost_webhook_url:
             env["MATTERMOST_WEBHOOK_URL"] = mattermost_webhook_url
 
-        env_layer = {
-            "services": {
-                "go": {
-                    "override": "merge",
-                    "environment": env
-                }
-            }
-        }
+        log_level = str(self.model.config["log-level"])
+        if log_level.lower() in ["info", "debug", "warn", "error", "fatal"]:
+            env["GATUS_LOG_LEVEL"] = log_level.upper()
+
+        env_layer = {"services": {"go": {"override": "merge", "environment": env}}}
         # combine=True allows this layer to sit on top of the framework's layer
         container.add_layer("go-env-layer", env_layer, combine=True)
         container.replan()

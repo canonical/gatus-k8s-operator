@@ -29,13 +29,13 @@ extensions:
 
 config:
   options:
-    # log-level:
-    #   description: |
-    #     Configures the log level of Gatus.
-    #
-    #     Acceptable values are: "info", "debug", "warning", "error" and "critical"
-    #   default: "info"
-    #   type: string
+    log-level:
+      description: |
+        Configures the log level of Gatus.
+
+        Acceptable values are: "info", "debug", "warning", "error" and "critical"
+      default: "info"
+      type: string
     jdbc-parameters:
       description: |
         Configures the JDBC parameters for connecting to Postgres, e.g. sslmode, targetServerType, etc.
@@ -49,28 +49,44 @@ config:
         same as the standard Gatus configuration file.
         See https://github.com/TwiN/gatus?tab=readme-ov-file#endpoints.
       type: string
+    announcements:
+      description: |
+        List of announcements to send.
+        YAML structured with an `announcements` top-level key,
+        same as the standard Gatus configuration file.
+        See https://github.com/TwiN/gatus?tab=readme-ov-file#announcements.
+      type: string
     juju-secret:
       description: |
         Juju Secret ID to pass to the application via environment variables.
         Secret keys are converted from kebab-case to SCREAMING_SNAKE_CASE.
       type: string
       default: ""
-    # announcements:
-    #   description: |
-    #     List of announcements to send.
-    #     YAML structured with an `announcements` top-level key,
-    #     same as the standard Gatus configuration file.
-    #     See https://github.com/TwiN/gatus?tab=readme-ov-file#announcements.
-    #   type: string
-    # mattermost-webhook-url:
-    #   description: |
-    #     Mattermost webhook URL to send alerts to.
-    #   type: string
-    #   default: ""
+
+actions:
+  add-announcement:
+    description: |
+      Appends an announcement to the announcements list.
+      See https://github.com/TwiN/gatus?tab=readme-ov-file#announcements.
+    properties:
+      type:
+        type: string
+        description: |
+          The type of announcement.
+          Valid values are: "outage", "warning", "information", "operational", "none".
+      message:
+        type: string
+        description: "The message to display to users."
+      archived:
+        type: boolean
+        description: "Whether to archive the announcement."
+        default: false
+    required:
+      - type
+      - message
 
 requires:
   postgresql:
     interface: postgresql_client
     optional: true
     limit: 1
-

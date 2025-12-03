@@ -44,10 +44,8 @@ def test_deploy(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[
     data = response.json()
     logger.info("Data: %s", data)
     # Check if the default endpoint, Ubuntu.com, is in the response
-    assert any(
-        endpoint.get("name") == "Ubuntu.com"
-        for endpoint in data
-    )
+    assert any(endpoint.get("name") == "Ubuntu.com" for endpoint in data)
+
 
 # def test_db_relation_stub(
 #     charm: pathlib.Path, juju: jubilant.Juju, postgresql_stub: pathlib.Path, charm_resources: dict[str, str]
@@ -114,6 +112,7 @@ def test_db_relation(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: 
     assert config.storage.type == "postgres"
     assert "postgresql-k8s-primary" in config.storage.path
     assert "/gatus-k8s?sslmode=disable" in config.storage.path
+
 
 def test_mattermost_alerting(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[str, str]):
     """Add a secret to the charm and check that the alerting config is updated."""
