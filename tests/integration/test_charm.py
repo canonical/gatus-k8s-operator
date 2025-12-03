@@ -8,7 +8,6 @@ import logging
 import pathlib
 
 import jubilant
-import pytest
 import yaml
 from pydantic import ValidationError
 
@@ -32,30 +31,27 @@ def test_deploy(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[
     status = juju.status()
     assert status.apps[APP_NAME].units[APP_NAME + "/0"].is_active
 
-def test_db_relation_stub(
-        charm: pathlib.Path,
-        juju: jubilant.Juju,
-        postgresql_stub: pathlib.Path,
-        charm_resources: dict[str, str]
-):
-    """Deploy the charm and check that the entrypoint is available.
 
-    This test uses an OCI image from a registry as the charm resource.
-    Thus, please ensure the --gatus-image option is set in the pytest command.
-    """
-    juju.deploy(str(postgresql_stub), app=PG_STUB_NAME)
-    juju.wait(jubilant.all_active, timeout=600)
-
-    juju.integrate(APP_NAME, PG_STUB_NAME)
-    juju.wait(jubilant.all_active, timeout=600, delay=10)
-
-    gatus_config = get_config(juju, APP_NAME)
-    assert gatus_config.storage is not None
-    assert gatus_config.storage.type == "postgres"
-    assert gatus_config.storage.path == "postgresql://postgres:postgres@localhost:5432/gatus"
+# def test_db_relation_stub(
+#     charm: pathlib.Path, juju: jubilant.Juju, postgresql_stub: pathlib.Path, charm_resources: dict[str, str]
+# ):
+#     """Deploy the charm and check that the entrypoint is available.
+#
+#     This test uses an OCI image from a registry as the charm resource.
+#     Thus, please ensure the --gatus-image option is set in the pytest command.
+#     """
+#     juju.deploy(str(postgresql_stub), app=PG_STUB_NAME)
+#     juju.wait(jubilant.all_active, timeout=600)
+#
+#     juju.integrate(APP_NAME, PG_STUB_NAME)
+#     juju.wait(jubilant.all_active, timeout=600, delay=10)
+#
+#     gatus_config = get_config(juju, APP_NAME)
+#     assert gatus_config.storage is not None
+#     assert gatus_config.storage.type == "postgres"
+#     assert gatus_config.storage.path == "postgresql://postgres:postgres@localhost:5432/gatus"
 
 
-@pytest.mark.skip(reason="Takes too long")
 def test_db_relation(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[str, str]):
     """Deploy the database charm and check that the gatus charm can connect to it.
 

@@ -50,6 +50,7 @@ class GatusCharm(paas_charm.go.Charm):
             return
 
         return container
+
     #
     # def _on_pebble_ready(self, event):
     #     """Override the default _on_pebble_ready."""
@@ -70,6 +71,7 @@ class GatusCharm(paas_charm.go.Charm):
 
         self._write_gatus_config(container)
         super()._on_config_changed(event)
+
     #
     # def _on_db_relation_changed(self, event):
     #     """Update Postgres relation data."""
@@ -109,7 +111,6 @@ class GatusCharm(paas_charm.go.Charm):
         #     },
         # ]
         # container.push("/config/config.yaml", yaml.dump(gatus_config), make_dirs=True)
-
 
         # container.push("/config/storage.yaml", yaml.dump(gatus_config), make_dirs=True)
         #

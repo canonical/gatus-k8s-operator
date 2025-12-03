@@ -5,6 +5,7 @@ from ops.charm import CharmBase
 from ops.main import main
 from ops.model import ActiveStatus
 
+
 class PostgresStub(CharmBase):
     def __init__(self, *args):
         super().__init__(*args)
@@ -20,6 +21,7 @@ class PostgresStub(CharmBase):
         relation_data["connection_string"] = "postgres://user:pass@1.2.3.4:5432/mydb"
         relation_data["database"] = "mydb"
         self.unit.status = ActiveStatus("Data injected")
+
 
 if __name__ == "__main__":
     main(PostgresStub)
