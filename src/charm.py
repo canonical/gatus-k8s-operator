@@ -10,12 +10,6 @@ import typing
 import ops
 import paas_charm.go
 
-# from charms.data_platform_libs.v0.data_interfaces import (
-#     DatabaseCreatedEvent,
-#     DatabaseEndpointsChangedEvent,
-#     DatabaseRequires,
-# )
-
 logger = logging.getLogger(__name__)
 
 SERVICE_NAME = "go"

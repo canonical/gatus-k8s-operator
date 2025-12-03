@@ -53,16 +53,6 @@ def charm():
     return charm_paths[0]
 
 
-#
-# @pytest.fixture(scope="module")
-# def postgresql_stub():
-#     """Build the stub charm."""
-#     stub_path = Path("tests/integration/postgresql_stub")
-#     subprocess.check_call(["charmcraft", "pack", "--quiet"], cwd=stub_path)
-#     stub_file = next(stub_path.glob("*.charm"))
-#     return stub_file.resolve()
-
-
 @pytest.fixture(scope="session")
 def charm_resources(request: FixtureRequest) -> dict[str, str]:
     """Prepare the OCI resources for the charm, read from option or env vars."""
