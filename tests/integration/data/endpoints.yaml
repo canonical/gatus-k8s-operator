@@ -1,0 +1,12 @@
+endpoints:
+  - name: GitHub
+    group: Websites
+    url: "https://github.com"
+    interval: 60s
+    conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 1000"
+    alerts:
+      - type: mattermost
+        description: "GitHub is down"
+        send-on-resolved: true

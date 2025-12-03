@@ -8,7 +8,6 @@ import logging
 import pathlib
 
 import jubilant
-import pytest
 import requests
 import yaml
 from pydantic import ValidationError
@@ -47,27 +46,6 @@ def test_deploy(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[
     assert any(endpoint.get("name") == "Ubuntu.com" for endpoint in data)
 
 
-# def test_db_relation_stub(
-#     charm: pathlib.Path, juju: jubilant.Juju, postgresql_stub: pathlib.Path, charm_resources: dict[str, str]
-# ):
-#     """Deploy the charm and check that the entrypoint is available.
-#
-#     This test uses an OCI image from a registry as the charm resource.
-#     Thus, please ensure the --gatus-image option is set in the pytest command.
-#     """
-#     juju.deploy(str(postgresql_stub), app=PG_STUB_NAME)
-#     juju.wait(jubilant.all_active, timeout=600)
-#
-#     juju.integrate(APP_NAME, PG_STUB_NAME)
-#     juju.wait(jubilant.all_active, timeout=600, delay=10)
-#
-#     gatus_config = get_config(juju, APP_NAME)
-#     assert gatus_config.storage is not None
-#     assert gatus_config.storage.type == "postgres"
-#     assert gatus_config.storage.path == "postgresql://postgres:postgres@localhost:5432/gatus"
-
-
-@pytest.mark.skip(reason="Too long")
 def test_db_relation(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[str, str]):
     """Deploy the database charm and check that the gatus charm can connect to it.
 
@@ -81,15 +59,6 @@ def test_db_relation(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: 
         config={"profile": "testing"},
     )
     juju.wait(lambda status: status.apps[PG_APP_NAME].is_active, timeout=20 * 60)
-
-    # Deploy the gatus charm
-    # It should be able to start without the database relation
-    # TODO: this carries over from the previous test?
-    # juju.deploy(charm.resolve(), app=APP_NAME, resources=charm_resources)
-    # juju.wait(jubilant.all_active, timeout=600)
-    # status = juju.status()
-    # assert status.apps[APP_NAME].units[APP_NAME + "/0"].is_active
-    # assert status.apps[APP_NAME].units[APP_NAME + "/0"].workload_status == "active"
 
     # Configure the charm with JDBC parameters for PostgreSQL connection
     juju.config(APP_NAME, {"jdbc-parameters": "sslmode=disable"})
@@ -114,7 +83,7 @@ def test_db_relation(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: 
     assert "/gatus-k8s?sslmode=disable" in config.storage.path
 
 
-def test_mattermost_alerting(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[str, str]):
+def test_mattermost_alerting(juju: jubilant.Juju):
     """Add a secret to the charm and check that the alerting config is updated."""
     # Add a secret to the Juju model
     secreturi = juju.add_secret(
@@ -144,6 +113,63 @@ def test_mattermost_alerting(charm: pathlib.Path, juju: jubilant.Juju, charm_res
     assert config.alerting.mattermost is not None
     assert config.alerting.mattermost.webhook_url == "http://localhost:8080/hooks/xxx"
     assert config.alerting.mattermost.client["insecure"] is True
+
+
+def test_endpoint_config(juju: jubilant.Juju):
+    """Test that the endpoint config is correctly parsed."""
+    with open("tests/integration/data/endpoints.yaml", "r") as f:
+        endpoints_string = f.read()
+
+    juju.config(APP_NAME, {"endpoints": endpoints_string})
+    juju.wait(jubilant.all_active, timeout=60, delay=10)
+
+    # Get the config of the gatus charm
+    config = get_config(juju)
+    print("Gatus config:")
+    print(config)
+
+    assert config.endpoints is not None
+    assert len(config.endpoints) > 0
+    assert config.endpoints[0].name == "GitHub"
+    assert config.endpoints[0].group == "Websites"
+    assert config.endpoints[0].url == "https://github.com"
+
+    status = juju.status()
+    unit = status.apps[APP_NAME].units[APP_NAME + "/0"]
+    # Check that the charm hooks are successful
+    assert unit.is_active
+
+    # Check that the underlying application is listening on port 8080
+    ip = unit.address
+    response = requests.get(f"http://{ip}:8080/api/v1/endpoints/statuses", timeout=5)
+    logger.info("Response: %s", response.text)
+    response.raise_for_status()
+
+    data = response.json()
+    logger.info("Data: %s", data)
+    # Check if the configured endpoint, GitHub, is in the response
+    assert any(endpoint.get("name") == "GitHub" for endpoint in data)
+
+
+def test_announcements_config(juju: jubilant.Juju):
+    """Test that the announcements config is correctly parsed."""
+    with open("tests/integration/data/announcements.yaml", "r") as f:
+        announcements_string = f.read()
+
+    juju.config(APP_NAME, {"announcements": announcements_string})
+    juju.wait(jubilant.all_active, timeout=60, delay=10)
+
+    # Get the config of the gatus charm
+    config = get_config(juju)
+    print("Gatus config:")
+    print(config)
+
+    assert config.announcements is not None
+    assert len(config.announcements) > 0
+    assert config.announcements[0].type == "outage"
+    assert config.announcements[0].message == "Scheduled maintenance on database servers from 14:00 to 16:00 UTC"
+
+    # Gatus doesn't show announcements in an API, so we cannot test it further for now.
 
 
 def get_config(juju: jubilant.Juju) -> GatusConfig:

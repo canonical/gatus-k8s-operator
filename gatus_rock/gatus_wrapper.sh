@@ -29,7 +29,6 @@ else
 	echo "POSTGRESQL_DB_CONNECT_STRING is not set"
 fi
 
-# TODO: wip
 # If there is a Juju secret with the Mattermost webhook URL, use it to configure alerting
 if [[ -n "${MATTERMOST_WEBHOOK_URL:-}" ]]; then
 	cat > "$ALERTS_FILE" <<EOF
@@ -43,13 +42,13 @@ else
 	echo "MATTERMOST_WEBHOOK_URL is not set"
 fi
 
-# TODO: wip
 # If there is an app config with announcements, dump it into the announcements.yaml file
 if [[ -n "${APP_ANNOUNCEMENTS:-}" ]]; then
 	echo "${APP_ANNOUNCEMENTS}" > "$ANNOUNCEMENTS_FILE"
+else
+	echo "APP_ANNOUNCEMENTS is not set"
 fi
 
-# TODO: wip
 # If there is an app config with endpoints, dump it into the endpoints.yaml file
 if [[ -n "${APP_ENDPOINTS:-}" ]]; then
 	echo "Using endpoints from config"

@@ -34,14 +34,8 @@ class GatusCharm(paas_charm.go.Charm):
         """
         super().__init__(*args)
 
-        # self.actions_observer = actions.Observer(self)
         self.framework.observe(self.on.app_pebble_ready, self._update)
         self.framework.observe(self.on.config_changed, self._update)
-        # Add observers to trigger config updates
-        # self.framework.observe(self.on.postgresql_relation_changed, self._on_db_relation_changed)
-        # self.framework.observe(self.on.gatus_pebble_ready, self._update_config)
-        # self.framework.observe(self.on.postgresql_relation_changed, self._update_config)
-        # self.framework.observe(self.on.postgresql_relation_departed, self._update_config)
 
     def _get_container(self, event) -> ops.model.Container | None:
         """Get the container if it is available."""
@@ -109,7 +103,7 @@ class GatusCharm(paas_charm.go.Charm):
             env["GATUS_LOG_LEVEL"] = log_level.upper()
 
         env_layer = {"services": {"go": {"override": "merge", "environment": env}}}
-        # combine=True allows this layer to sit on top of the framework's layer
+
         container.add_layer("go-env-layer", env_layer, combine=True)
         container.replan()
 

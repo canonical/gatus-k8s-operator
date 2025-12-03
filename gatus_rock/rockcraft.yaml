@@ -50,14 +50,5 @@ parts:
     source: .
     organize:
       gatus_wrapper.sh: gatus/gatus_wrapper.sh
-      add_announcement.py: gatus/add_announcement.py
     stage:
       - gatus
-
-  python:
-    plugin: python
-    source: .
-    stage-packages: 
-      - python3-venv
-    python-packages: 
-      - pyyaml
