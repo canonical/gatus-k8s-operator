@@ -41,7 +41,7 @@ integration-test: pack ## Run integration tests
 deploy: build-rock pack ## re-pack and re-deploy charm & rock
 	juju remove-application gatus-k8s --force
 	juju deploy ./$(CHARM_FILE) \
-		--resource app-image=$(REGISTRY)/$(ROCK_IMAGE) \
+		--resource app-image=$(REGISTRY)/$(ROCK_IMAGE)
 
 .PHONY: refresh 
 refresh: build-rock pack ## re-pack and re-deploy charm & rock

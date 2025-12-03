@@ -9,6 +9,8 @@ import typing
 
 import ops
 import paas_charm.go
+from ops.framework import EventBase
+from ops.model import Container
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +33,7 @@ class GatusCharm(paas_charm.go.Charm):
         self.framework.observe(self.on.app_pebble_ready, self._update)
         self.framework.observe(self.on.config_changed, self._update)
 
-    def _get_container(self, event) -> ops.model.Container | None:
+    def _get_container(self, event: EventBase) -> Container | None:
         """Get the container if it is available."""
         container = self.unit.get_container(CONTAINER_NAME)
         if not container.can_connect():
@@ -41,7 +43,7 @@ class GatusCharm(paas_charm.go.Charm):
 
         return container
 
-    def _update(self, event):
+    def _update(self, event: EventBase):
         container = self._get_container(event)
         if not container:
             return
@@ -81,7 +83,7 @@ class GatusCharm(paas_charm.go.Charm):
 
         return content["mattermost-webhook-url"]
 
-    def _update_env(self, container):
+    def _update_env(self, container: Container):
         """Create a pebble layer to add environment variables to the container.
 
         This is necessary for handling Juju secrets.

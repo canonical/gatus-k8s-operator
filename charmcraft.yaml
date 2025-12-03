@@ -33,7 +33,7 @@ config:
       description: |
         Configures the log level of Gatus.
 
-        Acceptable values are: "info", "debug", "warning", "error" and "critical"
+        Acceptable values are: "info", "debug", "warn", "error" and "fatal"
       default: "info"
       type: string
     jdbc-parameters:
@@ -62,6 +62,11 @@ config:
         Secret keys are converted from kebab-case to SCREAMING_SNAKE_CASE.
       type: string
       default: ""
+    mattermost-insecure:
+      description: |
+        Whether to use an insecure connection to Mattermost.
+      type: boolean
+      default: false
 
 actions:
   add-announcement:

@@ -15,6 +15,7 @@ mkdir -p "$CONFIG_DIR"
 
 # If there is a PostgreSQL database relation, use it to configure the storage
 if [[ -n "${POSTGRESQL_DB_CONNECT_STRING:-}" ]]; then
+	jdbc_params=""
 	if [[ -n "${APP_JDBC_PARAMETERS:-}" ]]; then
 		jdbc_params="?${APP_JDBC_PARAMETERS}"
 	fi
@@ -35,9 +36,13 @@ if [[ -n "${MATTERMOST_WEBHOOK_URL:-}" ]]; then
 alerting:
   mattermost:
     webhook-url: ${MATTERMOST_WEBHOOK_URL}
+EOF
+	if [[ "${APP_MATTERMOST_INSECURE:-false}" == "true" ]]; then
+		cat >> "$ALERTS_FILE" <<EOF
     client:
       insecure: true
 EOF
+	fi
 else
 	echo "MATTERMOST_WEBHOOK_URL is not set"
 fi
