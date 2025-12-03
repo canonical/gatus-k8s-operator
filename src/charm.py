@@ -52,8 +52,9 @@ class GatusCharm(paas_charm.go.Charm):
 
         try:
             container.restart(SERVICE_NAME)
-        except ops.pebble.ChangeError:
-            pass
+        except ops.pebble.ChangeError as e:
+            # Service may not exist yet (e.g., during initial setup), but log the error for visibility.
+            logger.error("Failed to restart service '%s': %s", SERVICE_NAME, e)
 
     def _get_mattermost_webhook_url(self) -> str | None:
         """Get the secret contents based on the charm config."""
