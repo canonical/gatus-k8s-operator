@@ -47,13 +47,13 @@ Currently, the charm supports Mattermost alerting.
 
 Since alerts use webhook URLs that can be sensitive (anyone with the URL can send a message),
 they are configured using Juju secrets. To do so, create a secret with a `mattermost-webhook-url`
-key and add that secret ID to the `juju-secret` charm config.
+key and add that secret ID to the `mattermost-alerting` charm config.
 The charm unpacks the secret and passes it as an environment variable to the rock script.
 
 ```sh
 juju add-secret gatus-secret mattermost-webhook-url="https://your.mattermost.instance/hooks/yourwebhookid"
 juju grant-secret yoursecretid gatus-k8s
-juju config gatus-k8s juju-secret="yoursecretid"
+juju config gatus-k8s mattermost-alerting="yoursecretid"
 ```
 
 ## Development and testing

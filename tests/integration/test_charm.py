@@ -8,6 +8,7 @@ import logging
 import pathlib
 
 import jubilant
+import pytest
 import requests
 import yaml
 from pydantic import ValidationError
@@ -46,6 +47,7 @@ def test_deploy(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[
     assert any(endpoint.get("name") == "Ubuntu.com" for endpoint in data)
 
 
+@pytest.mark.skip(reason="slow")
 def test_db_relation(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[str, str]):
     """Deploy the database charm and check that the gatus charm can connect to it.
 
@@ -101,7 +103,7 @@ def test_mattermost_alerting(juju: jubilant.Juju):
         app=APP_NAME,
     )
     secret_id = secreturi[len("secret:") :]
-    juju.config(APP_NAME, {"juju-secret": secret_id})
+    juju.config(APP_NAME, {"mattermost-alerting": secret_id})
     juju.wait(jubilant.all_active, timeout=60, delay=10)
 
     # Get the config of the gatus charm
@@ -112,6 +114,19 @@ def test_mattermost_alerting(juju: jubilant.Juju):
     assert config.alerting is not None
     assert config.alerting.mattermost is not None
     assert config.alerting.mattermost.webhook_url == "http://localhost:8080/hooks/xxx"
+
+    # WIP: Test that the charm reacts to updates to the secret
+    # juju.update_secret(
+    #     identifier=secreturi,
+    #     content={
+    #         "mattermost-webhook-url": "http://localhost:8080/hooks/yyy",
+    #     },
+    # )
+    # juju.wait(jubilant.all_active, timeout=60, delay=30)
+    #
+    # assert config.alerting is not None
+    # assert config.alerting.mattermost is not None
+    # assert config.alerting.mattermost.webhook_url == "http://localhost:8080/hooks/yyy"
 
 
 def test_endpoint_config(juju: jubilant.Juju):

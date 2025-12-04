@@ -29,18 +29,12 @@ extensions:
 
 config:
   options:
-    log-level:
+    announcements:
       description: |
-        Configures the log level of Gatus.
-
-        Acceptable values are: "info", "debug", "warn", "error" and "fatal"
-      default: "info"
-      type: string
-    jdbc-parameters:
-      description: |
-        Configures the JDBC parameters for connecting to Postgres, e.g. sslmode, targetServerType, etc.
-        See: https://jdbc.postgresql.org/documentation/use/
-      default: ""
+        List of announcements to send.
+        YAML structured with an `announcements` top-level key,
+        same as the standard Gatus configuration file.
+        See https://github.com/TwiN/gatus?tab=readme-ov-file#announcements.
       type: string
     endpoints:
       description: |
@@ -49,17 +43,25 @@ config:
         same as the standard Gatus configuration file.
         See https://github.com/TwiN/gatus?tab=readme-ov-file#endpoints.
       type: string
-    announcements:
+    jdbc-parameters:
       description: |
-        List of announcements to send.
-        YAML structured with an `announcements` top-level key,
-        same as the standard Gatus configuration file.
-        See https://github.com/TwiN/gatus?tab=readme-ov-file#announcements.
+        Configures the JDBC parameters for connecting to Postgres, e.g. sslmode, targetServerType, etc.
+        See: https://jdbc.postgresql.org/documentation/use/
+      default: ""
       type: string
-    juju-secret:
+    log-level:
       description: |
-        Juju Secret ID to pass to the application via environment variables.
-        Secret keys are converted from kebab-case to SCREAMING_SNAKE_CASE.
+        Configures the log level of Gatus.
+
+        Acceptable values are: "info", "debug", "warn", "error" and "fatal"
+      default: "info"
+      type: string
+    mattermost-alerting:
+      description: |
+        Juju Secret ID including secrets used for Mattermost alerting.
+
+        The secret may contain the following keys:
+          - mattermost-webhook-url: The webhook URL for Mattermost alerts.
       type: string
       default: ""
     mattermost-insecure:
