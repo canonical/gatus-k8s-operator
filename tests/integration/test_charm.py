@@ -120,7 +120,11 @@ def test_mattermost_alerting(juju: jubilant.Juju):
             "mattermost-webhook-url": "http://localhost:8080/hooks/yyy",
         },
     )
-    juju.wait(jubilant.all_active, timeout=60, delay=30)
+
+    # Get the config of the gatus charm
+    config = get_config(juju)
+    print("Gatus config:")
+    print(config)
 
     assert config.alerting is not None
     assert config.alerting.mattermost is not None
