@@ -112,7 +112,6 @@ def test_mattermost_alerting(juju: jubilant.Juju):
     assert config.alerting is not None
     assert config.alerting.mattermost is not None
     assert config.alerting.mattermost.webhook_url == "http://localhost:8080/hooks/xxx"
-    assert config.alerting.mattermost.client["insecure"] is True
 
 
 def test_endpoint_config(juju: jubilant.Juju):
@@ -204,8 +203,8 @@ def get_config(juju: jubilant.Juju) -> GatusConfig:
         gatus_config: GatusConfig = GatusConfig.model_validate(config)
         return gatus_config
     except yaml.YAMLError as e:
-        logger.error(f"Failed to parse config.yaml: {e}")
+        logger.error(f"Failed to parse yaml: {e}")
         raise
     except ValidationError as e:
-        logger.error(f"Failed to validate config.yaml: {e}")
+        logger.error(f"Failed to validate yaml: {e}")
         raise

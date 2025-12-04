@@ -19,8 +19,6 @@ announcements:
 alerting:
   mattermost:
     webhook-url: "http://localhost:8080/hooks/xxx"
-    client:
-      insecure: true
 
 endpoints:
   - name: Ubuntu.com

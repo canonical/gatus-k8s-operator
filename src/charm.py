@@ -11,6 +11,7 @@ import ops
 import paas_charm.go
 from ops.framework import EventBase
 from ops.model import Container
+from ops.pebble import LayerDict
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +100,16 @@ class GatusCharm(paas_charm.go.Charm):
         if log_level.lower() in ["info", "debug", "warn", "error", "fatal"]:
             env["GATUS_LOG_LEVEL"] = log_level.upper()
 
-        env_layer = {"services": {"go": {"override": "merge", "environment": env}}}
+        env_layer = LayerDict(
+            {
+                "services": {
+                    "go": {
+                        "override": "merge",
+                        "environment": env,
+                    }
+                }
+            }
+        )
 
         container.add_layer("go-env-layer", env_layer, combine=True)
         container.replan()

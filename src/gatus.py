@@ -31,10 +31,10 @@ class Announcement(BaseModel):
 
 
 class Mattermost(BaseModel):
-    """Configuration for Gatus Mattermost."""
+    """Configuration for Mattermost alerting."""
 
     webhook_url: str = Field(alias="webhook-url")
-    client: dict
+    client: dict | None = None
 
 
 class Alerting(BaseModel):
