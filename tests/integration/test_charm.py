@@ -64,7 +64,7 @@ def test_db_relation(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: 
     juju.config(APP_NAME, {"jdbc-parameters": "sslmode=disable"})
     # Add the database relation
     juju.integrate(APP_NAME, PG_APP_NAME)
-    juju.wait(jubilant.all_active, timeout=600, delay=10)
+    juju.wait(jubilant.all_active, timeout=600, delay=30)
 
     # Check that the charm resolves after the database relation
     status = juju.status()
