@@ -93,7 +93,7 @@ class GatusCharm(paas_charm.go.Charm):
         try:
             logger.info("Retrieving secret '%s'", secret_id)
             secret = self.model.get_secret(id=secret_id)
-            content = secret.get_content()
+            content = secret.get_content(refresh=True)
             value = content[secret_key]
         except SecretNotFoundError:
             logger.error(

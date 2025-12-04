@@ -113,18 +113,18 @@ def test_mattermost_alerting(juju: jubilant.Juju):
     assert config.alerting.mattermost is not None
     assert config.alerting.mattermost.webhook_url == "http://localhost:8080/hooks/xxx"
 
-    # WIP: Test that the charm reacts to updates to the secret
-    # juju.update_secret(
-    #     identifier=secreturi,
-    #     content={
-    #         "mattermost-webhook-url": "http://localhost:8080/hooks/yyy",
-    #     },
-    # )
-    # juju.wait(jubilant.all_active, timeout=60, delay=30)
-    #
-    # assert config.alerting is not None
-    # assert config.alerting.mattermost is not None
-    # assert config.alerting.mattermost.webhook_url == "http://localhost:8080/hooks/yyy"
+    # Test that the charm reacts to updates to the secret
+    juju.update_secret(
+        identifier=secreturi,
+        content={
+            "mattermost-webhook-url": "http://localhost:8080/hooks/yyy",
+        },
+    )
+    juju.wait(jubilant.all_active, timeout=60, delay=30)
+
+    assert config.alerting is not None
+    assert config.alerting.mattermost is not None
+    assert config.alerting.mattermost.webhook_url == "http://localhost:8080/hooks/yyy"
 
 
 def test_endpoint_config(juju: jubilant.Juju):
