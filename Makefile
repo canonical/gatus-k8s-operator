@@ -39,7 +39,7 @@ integration-test: pack ## Run integration tests
 
 .PHONY: deploy
 deploy: build-rock pack ## re-pack and re-deploy charm & rock
-	juju remove-application gatus-k8s --force
+	# juju remove-application gatus-k8s --force
 	juju deploy ./$(CHARM_FILE) \
 		--resource app-image=$(REGISTRY)/$(ROCK_IMAGE)
 
@@ -51,7 +51,7 @@ refresh: build-rock pack ## re-pack and re-deploy charm & rock
 
 .PHONY: publish
 .ONESHELL:
-publish: #pack ## Publish charm
+publish: ## Publish charm
 	@echo "Add rock image to registry"
 	rockcraft.skopeo --insecure-policy copy oci-archive:$$(ls $(ROCK_PATH)/*.rock) docker-daemon:$(IMAGE_NAME)
 

@@ -48,8 +48,6 @@ class GatusCharm(paas_charm.go.Charm):
         container = self._get_container(event)
         if not container:
             return
-        config = self.model.config
-        logger.info("Gatus config: %s", config)
 
         self._update_env(container)
 
