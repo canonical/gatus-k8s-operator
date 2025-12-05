@@ -15,7 +15,7 @@ juju deploy gatus-k8s --channel=edge
 ## Configuration
 
 ### 1. Postgresql relation
-Simply run: 
+Run: 
 
 ```sh
 juju integrate gatus-k8s postgresql-k8s
@@ -35,11 +35,12 @@ If the Postgresql relation is not present, no `storage.yaml` file is created,
 and Gatus defaults to in-memory execution.
 
 ### 2. Endpoints and announcements
-These are simple charm configs that take YAML files as input.
+These are charm configs that take YAML files as input.
 Check `tests/integration/data/[endpoints|announcements].yaml` for examples.
 
 ```sh
 juju config gatus-k8s announcements=@./tests/integration/data/announcements.yaml
+juju config gatus-k8s endpoints=@./tests/integration/data/endpoints.yaml
 ```
 
 ### 3. Alerting

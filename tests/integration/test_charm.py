@@ -68,14 +68,14 @@ def test_db_relation(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: 
 
     # Check that the charm resolves after the database relation
     status = juju.status()
-    print("Juju status:")
-    print(status.apps[APP_NAME].units[APP_NAME + "/0"].workload_status)
+    logger.info("Juju status:")
+    logger.info(status.apps[APP_NAME].units[APP_NAME + "/0"].workload_status)
     assert status.apps[APP_NAME].units[APP_NAME + "/0"].is_active
 
     # Get the config of the gatus charm
     config = get_config(juju)
-    print("Gatus config:")
-    print(config)
+    logger.info("Gatus config:")
+    logger.info(config)
 
     assert config.storage is not None
     assert config.storage.type == "postgres"
@@ -106,8 +106,8 @@ def test_mattermost_alerting(juju: jubilant.Juju):
 
     # Get the config of the gatus charm
     config = get_config(juju)
-    print("Gatus config:")
-    print(config)
+    logger.info("Gatus config:")
+    logger.info(config)
 
     assert config.alerting is not None
     assert config.alerting.mattermost is not None
@@ -124,8 +124,8 @@ def test_mattermost_alerting(juju: jubilant.Juju):
 
     # Get the config of the gatus charm
     config = get_config(juju)
-    print("Gatus config:")
-    print(config)
+    logger.info("Gatus config:")
+    logger.info(config)
 
     assert config.alerting is not None
     assert config.alerting.mattermost is not None
@@ -142,8 +142,8 @@ def test_endpoint_config(juju: jubilant.Juju):
 
     # Get the config of the gatus charm
     config = get_config(juju)
-    print("Gatus config:")
-    print(config)
+    logger.info("Gatus config:")
+    logger.info(config)
 
     assert config.endpoints is not None
     assert len(config.endpoints) > 0
@@ -178,8 +178,8 @@ def test_announcements_config(juju: jubilant.Juju):
 
     # Get the config of the gatus charm
     config = get_config(juju)
-    print("Gatus config:")
-    print(config)
+    logger.info("Gatus config:")
+    logger.info(config)
 
     assert config.announcements is not None
     assert len(config.announcements) > 0

@@ -27,7 +27,10 @@ def juju(request: FixtureRequest):
             logger.info("Collecting Juju logs...")
             time.sleep(0.5)  # Wait for Juju to process logs.
             log = juju.debug_log(limit=1000)
-            print(log, end="", file=sys.stderr)
+            logger.error("Juju debug log:")
+            for line in log.splitlines():
+                logger.error(line)
+            sys.exit(1)
 
 
 @pytest.fixture(scope="session")

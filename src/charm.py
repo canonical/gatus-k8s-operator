@@ -35,21 +35,6 @@ class GatusCharm(paas_charm.go.Charm):
         self.framework.observe(self.on.config_changed, self._update)
         self.framework.observe(self.on.secret_changed, self._update)
 
-    def _get_container(self, event: EventBase) -> Container | None:
-        """Get the container if it is available.
-
-        Args:
-            event: The event that triggered the method.
-
-        """
-        container = self.unit.get_container(CONTAINER_NAME)
-        if not container.can_connect():
-            logger.info("Pebble is not ready yet, deferring config update")
-            event.defer()
-            return
-
-        return container
-
     def _update(self, event: EventBase):
         """Update the application configuration when relevant.
 
@@ -58,10 +43,15 @@ class GatusCharm(paas_charm.go.Charm):
 
         """
         logger.info("Updating config")
-        container = self._get_container(event)
-        if not container:
+
+        # Get the application container
+        container = self.unit.get_container(CONTAINER_NAME)
+        if not container.can_connect():
+            logger.info("Pebble is not ready yet, deferring config update")
+            event.defer()
             return
 
+        # Update environment variables based on config
         self._update_env(container)
 
         try:
@@ -83,15 +73,14 @@ class GatusCharm(paas_charm.go.Charm):
         try:
             secret_id = str(config[config_name])
         except KeyError:
-            logger.info("No '%s' in config", config_name)
+            logger.debug("No '%s' in config", config_name)
             return None
 
         if not secret_id:
-            logger.info("No secret ID in config for '%s'", config_name)
+            logger.debug("No secret ID in config for '%s'", config_name)
             return None
 
         try:
-            logger.info("Retrieving secret '%s'", secret_id)
             secret = self.model.get_secret(id=secret_id)
             content = secret.get_content(refresh=True)
             value = content[secret_key]
@@ -131,12 +120,13 @@ class GatusCharm(paas_charm.go.Charm):
 
         mattermost_webhook_url = self._get_juju_secret("mattermost-alerting", "mattermost-webhook-url")
         if mattermost_webhook_url:
-            logger.info("Mattermost webhook URL found in secret: %s", mattermost_webhook_url)
             env["MATTERMOST_WEBHOOK_URL"] = mattermost_webhook_url
 
         log_level = str(self.model.config["log-level"])
         if log_level.lower() in ["info", "debug", "warn", "error", "fatal"]:
             env["GATUS_LOG_LEVEL"] = log_level.upper()
+        else:
+            logger.warn("Invalid log level: %s", log_level)
 
         env_layer = LayerDict(
             {
