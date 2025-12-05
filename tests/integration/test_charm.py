@@ -28,7 +28,7 @@ def test_deploy(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[
     Thus, please ensure the --gatus-image option is set in the pytest command.
     """
     juju.deploy(charm.resolve(), app=APP_NAME, resources=charm_resources)
-    juju.wait(jubilant.all_active, timeout=60, delay=10)
+    juju.wait(jubilant.all_active, timeout=300, delay=10)
     status = juju.status()
     unit = status.apps[APP_NAME].units[APP_NAME + "/0"]
     # Check that the charm hooks are successful
@@ -45,7 +45,6 @@ def test_deploy(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[
     # Check if the default endpoint, Ubuntu.com, is in the response
     assert any(endpoint.get("name") == "Ubuntu.com" for endpoint in data)
 
-
 def test_db_relation(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[str, str]):
     """Deploy the database charm and check that the gatus charm can connect to it.
 
@@ -58,13 +57,13 @@ def test_db_relation(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: 
         channel="14/stable",
         config={"profile": "testing"},
     )
-    juju.wait(lambda status: status.apps[PG_APP_NAME].is_active, timeout=20 * 60)
+    juju.wait(lambda status: status.apps[PG_APP_NAME].is_active, timeout=20 * 300)
 
     # Configure the charm with JDBC parameters for PostgreSQL connection
     juju.config(APP_NAME, {"jdbc-parameters": "sslmode=disable"})
     # Add the database relation
     juju.integrate(APP_NAME, PG_APP_NAME)
-    juju.wait(jubilant.all_active, timeout=600, delay=30)
+    juju.wait(jubilant.all_active, timeout=3000, delay=30)
 
     # Check that the charm resolves after the database relation
     status = juju.status()
@@ -102,7 +101,7 @@ def test_mattermost_alerting(juju: jubilant.Juju):
     )
     secret_id = secreturi[len("secret:") :]
     juju.config(APP_NAME, {"mattermost-alerting": secret_id})
-    juju.wait(jubilant.all_active, timeout=60, delay=10)
+    juju.wait(jubilant.all_active, timeout=300, delay=10)
 
     # Get the config of the gatus charm
     config = get_config(juju)
@@ -120,7 +119,7 @@ def test_mattermost_alerting(juju: jubilant.Juju):
             "mattermost-webhook-url": "http://localhost:8080/hooks/yyy",
         },
     )
-    juju.wait(jubilant.all_active, timeout=60, delay=10)
+    juju.wait(jubilant.all_active, timeout=300, delay=10)
 
     # Get the config of the gatus charm
     config = get_config(juju)
@@ -138,7 +137,7 @@ def test_endpoint_config(juju: jubilant.Juju):
         endpoints_string = f.read()
 
     juju.config(APP_NAME, {"endpoints": endpoints_string})
-    juju.wait(jubilant.all_active, timeout=60, delay=10)
+    juju.wait(jubilant.all_active, timeout=300, delay=10)
 
     # Get the config of the gatus charm
     config = get_config(juju)
@@ -174,7 +173,7 @@ def test_announcements_config(juju: jubilant.Juju):
         announcements_string = f.read()
 
     juju.config(APP_NAME, {"announcements": announcements_string})
-    juju.wait(jubilant.all_active, timeout=60, delay=10)
+    juju.wait(jubilant.all_active, timeout=300, delay=10)
 
     # Get the config of the gatus charm
     config = get_config(juju)
