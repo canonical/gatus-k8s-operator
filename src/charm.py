@@ -43,7 +43,7 @@ class GatusCharm(paas_charm.go.Charm):
         if validation_msg:
             self.unit.status = BlockedStatus(validation_msg)
 
-    def restart(self) -> None:
+    def restart(self, rerun_migrations: bool = False) -> None:
         """Override the default restart to add a validation guard."""
         validation_msg = self._validate_config()
         if validation_msg:
@@ -51,7 +51,7 @@ class GatusCharm(paas_charm.go.Charm):
             self.unit.status = BlockedStatus(validation_msg)
             return
 
-        super().restart()
+        super().restart(rerun_migrations)
 
     def _update(self, event: EventBase):
         """Update the application configuration when relevant.
