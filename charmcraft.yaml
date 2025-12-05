@@ -43,12 +43,6 @@ config:
         same as the standard Gatus configuration file.
         See https://github.com/TwiN/gatus?tab=readme-ov-file#endpoints.
       type: string
-    jdbc-parameters:
-      description: |
-        Configures the JDBC parameters for connecting to Postgres, e.g. sslmode, targetServerType, etc.
-        See: https://jdbc.postgresql.org/documentation/use/
-      default: ""
-      type: string
     log-level:
       description: |
         Configures the log level of Gatus.

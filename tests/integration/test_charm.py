@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 APP_NAME = "gatus-k8s"
 PG_APP_NAME = "postgresql-k8s"
-PG_STUB_NAME = "postgresql-stub"
+SELF_SIGNED_CERT_APP_NAME = "self-signed-certificates"
 
 
 def test_deploy(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[str, str]):
@@ -45,6 +45,7 @@ def test_deploy(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[
     # Check if the default endpoint, Ubuntu.com, is in the response
     assert any(endpoint.get("name") == "Ubuntu.com" for endpoint in data)
 
+
 def test_db_relation(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[str, str]):
     """Deploy the database charm and check that the gatus charm can connect to it.
 
@@ -55,17 +56,21 @@ def test_db_relation(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: 
     juju.deploy(
         PG_APP_NAME,
         channel="14/stable",
-        config={"profile": "testing"},
     )
-    juju.wait(lambda status: status.apps[PG_APP_NAME].is_active, timeout=20 * 300)
+    # Deploy the self-signed-certificates charm
+    juju.deploy(
+        SELF_SIGNED_CERT_APP_NAME,
+        channel="1/stable",
+    )
+    juju.wait(jubilant.all_active, timeout=600, delay=30)
 
-    # Configure the charm with JDBC parameters for PostgreSQL connection
-    juju.config(APP_NAME, {"jdbc-parameters": "sslmode=disable"})
-    # Add the database relation
+    # Add the charm relations
+    juju.integrate(PG_APP_NAME, SELF_SIGNED_CERT_APP_NAME)
+    juju.wait(jubilant.all_active, timeout=300, delay=30)
     juju.integrate(APP_NAME, PG_APP_NAME)
-    juju.wait(jubilant.all_active, timeout=3000, delay=30)
+    juju.wait(jubilant.all_active, timeout=300, delay=30)
 
-    # Check that the charm resolves after the database relation
+    # Check that the charms resolve after the relations
     status = juju.status()
     logger.info("Juju status:")
     logger.info(status.apps[APP_NAME].units[APP_NAME + "/0"].workload_status)
@@ -79,7 +84,6 @@ def test_db_relation(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: 
     assert config.storage is not None
     assert config.storage.type == "postgres"
     assert "postgresql-k8s-primary" in config.storage.path
-    assert "/gatus-k8s?sslmode=disable" in config.storage.path
 
 
 def test_mattermost_alerting(juju: jubilant.Juju):
@@ -131,7 +135,17 @@ def test_mattermost_alerting(juju: jubilant.Juju):
     assert config.alerting.mattermost.webhook_url == "http://localhost:8080/hooks/yyy"
 
 
-def test_endpoint_config(juju: jubilant.Juju):
+def test_invalid_endpoints_config(juju: jubilant.Juju):
+    """Test that the endpoint config is correctly parsed."""
+    with open("tests/integration/data/endpoints-invalid.yaml", "r") as f:
+        endpoints_string = f.read()
+
+    juju.config(APP_NAME, {"endpoints": endpoints_string})
+    # Check that the charm is blocked by the invalid config
+    juju.wait(lambda status: jubilant.all_blocked(status, APP_NAME), timeout=300, delay=10)
+
+
+def test_endpoints_config(juju: jubilant.Juju):
     """Test that the endpoint config is correctly parsed."""
     with open("tests/integration/data/endpoints.yaml", "r") as f:
         endpoints_string = f.read()
@@ -165,6 +179,16 @@ def test_endpoint_config(juju: jubilant.Juju):
     logger.info("Data: %s", data)
     # Check if the configured endpoint, GitHub, is in the response
     assert any(endpoint.get("name") == "GitHub" for endpoint in data)
+
+
+def test_invalid_announcements_config(juju: jubilant.Juju):
+    """Test that the endpoint config is correctly parsed."""
+    with open("tests/integration/data/announcements-invalid.yaml", "r") as f:
+        announcements_string = f.read()
+
+    juju.config(APP_NAME, {"announcements": announcements_string})
+    # Check that the charm is blocked by the invalid config
+    juju.wait(lambda status: jubilant.all_blocked(status, APP_NAME), timeout=300, delay=10)
 
 
 def test_announcements_config(juju: jubilant.Juju):

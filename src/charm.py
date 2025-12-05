@@ -9,9 +9,13 @@ import typing
 
 import ops
 import paas_charm.go
+import yaml
 from ops.framework import EventBase
-from ops.model import Container, ModelError, SecretNotFoundError
-from ops.pebble import LayerDict
+from ops.model import BlockedStatus, Container, ModelError, SecretNotFoundError
+from ops.pebble import LayerDict, PathError
+from pydantic import ValidationError
+
+from gatus import GatusConfig
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +57,10 @@ class GatusCharm(paas_charm.go.Charm):
 
         # Update environment variables based on config
         self._update_env(container)
+
+        validation_msg = self._validate_config(container)
+        if validation_msg:
+            self.unit.status = BlockedStatus(validation_msg)
 
         try:
             container.restart(SERVICE_NAME)
@@ -141,6 +149,40 @@ class GatusCharm(paas_charm.go.Charm):
 
         container.add_layer("go-env-layer", env_layer, combine=True)
         container.replan()
+
+    def _validate_config(self, container: Container):
+        """Validate the application configuration.
+
+        Args:
+            container: The container from which to pull the config files.
+
+        """
+        config_keys = ["storage", "announcements", "endpoints", "alerting"]
+        config_dict = {}
+
+        for config_key in config_keys:
+            filepath = f"/config/{config_key}.yaml"
+            try:
+                file_content = container.pull(filepath).read()
+                data = yaml.safe_load(file_content)
+                # Merge the dicts
+                config_dict = config_dict | data
+            except PathError:
+                # The file does not need to exist
+                logger.info(f"File {filepath} not found in container {container.name}.")
+            except yaml.YAMLError as e:
+                msg = f"Failed to parse YAML based on {config_key}."
+                logger.error(msg, e)
+                return msg
+
+        try:
+            GatusConfig.model_validate(config_dict)
+        except ValidationError as e:
+            msg = f"Failed to validate Gatus configuration: {e}"
+            logger.error(msg, e)
+            return msg
+
+        return None
 
 
 if __name__ == "__main__":  # pragma: nocover

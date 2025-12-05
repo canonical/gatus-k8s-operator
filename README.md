@@ -24,13 +24,6 @@ The charm automatically generates a few environment variables,
 including `POSTGRESQL_DB_CONNECT_STRING`. If this one exists and is non-empty, 
 a `storage.yaml` file is created with the appropriate values.
 
-The connection to Postgresql can be further customized with the `jdbc-parameters`
-charm config:
-
-```sh
-juju config gatus-k8s jdbc-parameters="sslmode=disable"
-```
-
 If the Postgresql relation is not present, no `storage.yaml` file is created,
 and Gatus defaults to in-memory execution.
 

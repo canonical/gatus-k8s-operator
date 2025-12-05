@@ -15,14 +15,9 @@ mkdir -p "$CONFIG_DIR"
 
 # If there is a PostgreSQL database relation, use it to configure the storage
 if [[ -n "${POSTGRESQL_DB_CONNECT_STRING:-}" ]]; then
-	jdbc_params=""
-	if [[ -n "${APP_JDBC_PARAMETERS:-}" ]]; then
-		jdbc_params="?${APP_JDBC_PARAMETERS}"
-	fi
-	
 	cat > "$STORAGE_FILE" <<EOF
 storage:
-  path: ${POSTGRESQL_DB_CONNECT_STRING}${jdbc_params:-}
+  path: ${POSTGRESQL_DB_CONNECT_STRING}
   type: postgres
 EOF
 
