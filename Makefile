@@ -26,7 +26,7 @@ build-rock:
 	# Clear existing rocks
 	cd $(ROCK_PATH) && rm -f *.rock
 	# Pack rock
-	rockcraft clean copy-files
+	rockcraft clean copy-files  # avoid caching issues
 	rockcraft pack
 	# Push rock to local registry
 	rockcraft.skopeo --insecure-policy copy \
@@ -34,12 +34,11 @@ build-rock:
 		docker://$(REGISTRY)/$(ROCK_IMAGE)
 
 .PHONY: integration-test
-integration-test: pack ## Run integration tests
+integration-test: ## Run integration tests
 	tox -e integration -- --gatus-image $(REGISTRY)/$(ROCK_IMAGE)
 
 .PHONY: deploy
-deploy: build-rock pack ## re-pack and re-deploy charm & rock
-	# juju remove-application gatus-k8s --force
+deploy: ## Deploy charm
 	juju deploy ./$(CHARM_FILE) \
 		--resource app-image=$(REGISTRY)/$(ROCK_IMAGE)
 
@@ -48,6 +47,12 @@ refresh: build-rock pack ## re-pack and re-deploy charm & rock
 	juju refresh $(CHARM_NAME) \
 		--path ./$(CHARM_FILE) \
 		--resource app-image=$(REGISTRY)/$(ROCK_IMAGE)
+
+.PHONY: clean
+clean: ## Cleanup
+	rm $(ROCK_PATH)/*.rock
+	rm $(CHARM_FILE)
+	juju remove-application $(CHARM_NAME) --force
 
 .PHONY: publish
 .ONESHELL:
