@@ -12,7 +12,7 @@ import paas_charm.go
 import yaml
 from ops.framework import EventBase
 from ops.model import BlockedStatus, Container, ModelError, SecretNotFoundError
-from ops.pebble import LayerDict, PathError
+from ops.pebble import LayerDict
 from pydantic import ValidationError
 
 from gatus import GatusConfig
@@ -39,6 +39,20 @@ class GatusCharm(paas_charm.go.Charm):
         self.framework.observe(self.on.config_changed, self._update)
         self.framework.observe(self.on.secret_changed, self._update)
 
+        validation_msg = self._validate_config()
+        if validation_msg:
+            self.unit.status = BlockedStatus(validation_msg)
+
+    def restart(self) -> None:
+        """Override the default restart to add a validation guard."""
+        validation_msg = self._validate_config()
+        if validation_msg:
+            logger.warning(f"Config invalid, preventing restart: {validation_msg}")
+            self.unit.status = BlockedStatus(validation_msg)
+            return
+
+        super().restart()
+
     def _update(self, event: EventBase):
         """Update the application configuration when relevant.
 
@@ -58,16 +72,7 @@ class GatusCharm(paas_charm.go.Charm):
         # Update environment variables based on config
         self._update_env(container)
 
-        validation_msg = self._validate_config(container)
-        if validation_msg:
-            self.unit.status = BlockedStatus(validation_msg)
-            return
-
-        try:
-            container.restart(SERVICE_NAME)
-        except ops.pebble.ChangeError as e:
-            # Service may not exist yet (e.g., during initial setup), but log the error for visibility.
-            logger.error("Failed to restart service '%s': %s", SERVICE_NAME, e)
+        self.restart()
 
     def _get_juju_secret(self, config_name: str, secret_key: str) -> str | None:
         """Get Juju secret contents based on the charm config.
@@ -151,37 +156,43 @@ class GatusCharm(paas_charm.go.Charm):
         container.add_layer("go-env-layer", env_layer, combine=True)
         container.replan()
 
-    def _validate_config(self, container: Container):
-        """Validate the application configuration.
-
-        Args:
-            container: The container from which to pull the config files.
-
-        """
-        config_keys = ["storage", "announcements", "endpoints", "alerting"]
+    def _validate_config(self) -> str | None:
+        """Validate the application configuration."""
+        logger.info("Validating config")
+        config_keys = ["announcements", "endpoints"]
         config_dict = {}
 
         for config_key in config_keys:
-            filepath = f"/config/{config_key}.yaml"
+            if config_key not in self.model.config:
+                continue
+
+            config_item = str(self.model.config[config_key])
+            if not config_item:
+                continue
+
+            logger.info(f"Validating {config_key} config: {config_item}")
             try:
-                file_content = container.pull(filepath).read()
-                data = yaml.safe_load(file_content)
+                data = yaml.safe_load(config_item)
                 # Merge the dicts
                 config_dict = config_dict | data
-            except PathError:
-                # The file does not need to exist
-                logger.info(f"File {filepath} not found in container {container.name}.")
             except yaml.YAMLError as e:
-                msg = f"Failed to parse YAML based on {config_key}."
-                logger.error(msg, e)
-                return msg
+                logger.error(e)
+                return f"Failed to parse YAML based on {config_key}"
+            except TypeError as e:
+                logger.error(e)
+                return f"Invalid YAML structure on {config_key}"
+            except Exception as e:
+                logger.error(e)
+                return f"Uexpected error on {config_key}"
 
         try:
             GatusConfig.model_validate(config_dict)
         except ValidationError as e:
-            msg = f"Failed to validate Gatus configuration: {e}"
-            logger.error(msg, e)
-            return msg
+            logger.error(e)
+            return "Failed to validate Gatus configuration"
+        except Exception as e:
+            logger.error(e)
+            return "Unexpected error in Gatus configuration"
 
         return None
 

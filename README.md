@@ -29,11 +29,11 @@ and Gatus defaults to in-memory execution.
 
 ### 2. Endpoints and announcements
 These are charm configs that take YAML files as input.
-Check `tests/integration/data/[endpoints|announcements].yaml` for examples.
+Check `tests/data/[endpoints|announcements].yaml` for examples.
 
 ```sh
-juju config gatus-k8s announcements=@./tests/integration/data/announcements.yaml
-juju config gatus-k8s endpoints=@./tests/integration/data/endpoints.yaml
+juju config gatus-k8s announcements=@./tests/data/announcements.yaml
+juju config gatus-k8s endpoints=@./tests/data/endpoints.yaml
 ```
 
 ### 3. Alerting

@@ -9,7 +9,7 @@ The intention is that this module could be used outside the context of a charm.
 import logging
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +28,15 @@ class Announcement(BaseModel):
     type: str = "none"
     message: str
     archived: bool = False
+
+    @field_validator("type")
+    @classmethod
+    def validate_type(cls, v: str) -> str:
+        """Validate the announcement type."""
+        announcement_types = ["none", "outage", "warning", "information", "operational"]
+        if v not in announcement_types:
+            raise ValueError(f"Invalid announcement type: {v}")
+        return v
 
 
 class Mattermost(BaseModel):

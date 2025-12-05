@@ -137,7 +137,7 @@ def test_mattermost_alerting(juju: jubilant.Juju):
 
 def test_invalid_endpoints_config(juju: jubilant.Juju):
     """Test that the endpoint config is correctly parsed."""
-    with open("tests/integration/data/endpoints-invalid.yaml", "r") as f:
+    with open("tests/data/endpoints-invalid.yaml", "r") as f:
         endpoints_string = f.read()
 
     juju.config(APP_NAME, {"endpoints": endpoints_string})
@@ -147,7 +147,7 @@ def test_invalid_endpoints_config(juju: jubilant.Juju):
 
 def test_endpoints_config(juju: jubilant.Juju):
     """Test that the endpoint config is correctly parsed."""
-    with open("tests/integration/data/endpoints.yaml", "r") as f:
+    with open("tests/data/endpoints.yaml", "r") as f:
         endpoints_string = f.read()
 
     juju.config(APP_NAME, {"endpoints": endpoints_string})
@@ -183,7 +183,7 @@ def test_endpoints_config(juju: jubilant.Juju):
 
 def test_invalid_announcements_config(juju: jubilant.Juju):
     """Test that the endpoint config is correctly parsed."""
-    with open("tests/integration/data/announcements-invalid.yaml", "r") as f:
+    with open("tests/data/announcements-invalid.yaml", "r") as f:
         announcements_string = f.read()
 
     juju.config(APP_NAME, {"announcements": announcements_string})
@@ -193,7 +193,7 @@ def test_invalid_announcements_config(juju: jubilant.Juju):
 
 def test_announcements_config(juju: jubilant.Juju):
     """Test that the announcements config is correctly parsed."""
-    with open("tests/integration/data/announcements.yaml", "r") as f:
+    with open("tests/data/announcements.yaml", "r") as f:
         announcements_string = f.read()
 
     juju.config(APP_NAME, {"announcements": announcements_string})

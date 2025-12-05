@@ -6,6 +6,7 @@
 import logging
 from datetime import datetime, timezone
 
+import pytest
 import yaml
 from pydantic import ValidationError
 
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 def test_gatus_config():
     """Test that the GatusConfig class correctly reflects the config.yaml file."""
-    with open("tests/unit/data/config.yaml", "r") as f:
+    with open("tests/data/config.yaml", "r") as f:
         config_string = f.read()
 
     try:
@@ -56,3 +57,31 @@ def test_gatus_config():
     assert gatus_config.endpoints[0].alerts is not None
     assert len(gatus_config.endpoints[0].alerts) > 0
     assert gatus_config.endpoints[0].alerts[0].type == "mattermost"
+
+
+def test_invalid_announcements():
+    """Test that the charm rejects invalid announcements."""
+    with open("tests/data/announcements-invalid.yaml", "r") as f:
+        config_string = f.read()
+
+    try:
+        config = yaml.safe_load(config_string)
+    except yaml.YAMLError as e:
+        logger.error(f"Failed to parse config.yaml: {e}")
+        raise
+    with pytest.raises(ValidationError):
+        GatusConfig.model_validate(config)
+
+
+def test_invalid_endpoints():
+    """Test that the charm rejects invalid endpoints."""
+    with open("tests/data/endpoints-invalid.yaml", "r") as f:
+        config_string = f.read()
+
+    try:
+        config = yaml.safe_load(config_string)
+    except yaml.YAMLError as e:
+        logger.error(f"Failed to parse config.yaml: {e}")
+        raise
+    with pytest.raises(ValidationError):
+        GatusConfig.model_validate(config)
