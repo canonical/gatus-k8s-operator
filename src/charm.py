@@ -61,6 +61,7 @@ class GatusCharm(paas_charm.go.Charm):
         validation_msg = self._validate_config(container)
         if validation_msg:
             self.unit.status = BlockedStatus(validation_msg)
+            return
 
         try:
             container.restart(SERVICE_NAME)
