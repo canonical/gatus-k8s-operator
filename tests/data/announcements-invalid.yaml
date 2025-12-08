@@ -1,0 +1,7 @@
+# Copyright 2025 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+announcements:
+  - timestamp: 2025-08-15T14:00:00Z
+    type: invalid-announcement
+    message: "Scheduled maintenance on database servers from 14:00 to 16:00 UTC"

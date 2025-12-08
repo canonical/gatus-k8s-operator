@@ -289,6 +289,7 @@ dependencies = [
 [package.dev-dependencies]
 integration = [
     { name = "jubilant" },
+    { name = "pydantic" },
     { name = "pytest" },
     { name = "pytest-operator" },
     { name = "pyyaml" },
@@ -317,6 +318,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 integration = [
     { name = "jubilant" },
+    { name = "pydantic" },
     { name = "pytest" },
     { name = "pytest-operator" },
     { name = "pyyaml" },

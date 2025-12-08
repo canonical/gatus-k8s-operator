@@ -1,41 +1,55 @@
 # gatus-k8s-operator
-A charmed operator for running Gatus on Kubernetes.
+A [12-factor charm](https://documentation.ubuntu.com/juju/3.6/reference/charm/#factor-app-charm)
+operator for running [Gatus](https://github.com/TwiN/gatus) on Juju and Kubernetes.
 
-(This is a work in progress.)
+Gatus is a tool for monitoring service uptimes.
 
-## Testing
+## Usage
 
-First, install dependencies. Install
-[uv](https://docs.astral.sh/uv/getting-started/installation/) and
-then run the following command.
+To deploy Gatus in a Juju model, run:
 
-```bash
-uv sync
+```sh
+juju deploy gatus-k8s --channel=edge
 ```
 
-To run linting, unit tests and static analysis.
+## Configuration
 
-```bash
-tox
+### 1. Postgresql relation
+Run: 
+
+```sh
+juju integrate gatus-k8s postgresql-k8s
+```
+The charm automatically generates a few environment variables, 
+including `POSTGRESQL_DB_CONNECT_STRING`. If this one exists and is non-empty, 
+a `storage.yaml` file is created with the appropriate values.
+
+If the Postgresql relation is not present, no `storage.yaml` file is created,
+and Gatus defaults to in-memory execution.
+
+### 2. Endpoints and announcements
+These are charm configs that take YAML files as input.
+Check `tests/data/[endpoints|announcements].yaml` for examples.
+
+```sh
+juju config gatus-k8s announcements=@./tests/data/announcements.yaml
+juju config gatus-k8s endpoints=@./tests/data/endpoints.yaml
 ```
 
-To run integration tests, run the following command. This builds a fresh rock
-and uses it to run the tests.
+### 3. Alerting
+Currently, the charm supports Mattermost alerting.
 
-```bash
-make integration-test
+Since alerts use webhook URLs that can be sensitive (anyone with the URL can send a message),
+they are configured using Juju secrets. To do so, create a secret with a `mattermost-webhook-url`
+key and add that secret ID to the `mattermost-alerting` charm config.
+The charm unpacks the secret and passes it as an environment variable to the rock script.
+
+```sh
+juju add-secret gatus-secret mattermost-webhook-url="https://your.mattermost.instance/hooks/yourwebhookid"
+juju grant-secret yoursecretid gatus-k8s
+juju config gatus-k8s mattermost-alerting="yoursecretid"
 ```
 
-## Deployment
+## Development and testing
 
-Pack the charm:
-
-```bash
-make pack
-```
-
-Deploy the charm:
-
-```bash
-juju deploy ./gatus-k8s_amd64.charm --resource app-image=gatus/gatus:latest
-```
+See [CONTRIBUTING.md](CONTRIBUTING.md).

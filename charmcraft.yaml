@@ -27,9 +27,45 @@ platforms:
 extensions:
   - go-framework
 
+config:
+  options:
+    announcements:
+      description: |
+        List of announcements to send.
+        YAML structured with an `announcements` top-level key,
+        same as the standard Gatus configuration file.
+        See https://github.com/TwiN/gatus?tab=readme-ov-file#announcements.
+      type: string
+    endpoints:
+      description: |
+        List of endpoints to monitor.
+        YAML structured with an `endpoints` top-level key,
+        same as the standard Gatus configuration file.
+        See https://github.com/TwiN/gatus?tab=readme-ov-file#endpoints.
+      type: string
+    log-level:
+      description: |
+        Configures the log level of Gatus.
+
+        Acceptable values are: "info", "debug", "warn", "error" and "fatal"
+      default: "info"
+      type: string
+    mattermost-alerting:
+      description: |
+        Juju Secret ID including secrets used for Mattermost alerting.
+
+        The secret may contain the following keys:
+          - mattermost-webhook-url: The webhook URL for Mattermost alerts.
+      type: string
+      default: ""
+    mattermost-insecure:
+      description: |
+        Whether to use an insecure connection to Mattermost.
+      type: boolean
+      default: false
+
 requires:
   postgresql:
     interface: postgresql_client
     optional: true
     limit: 1
-
