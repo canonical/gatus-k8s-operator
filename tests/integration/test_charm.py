@@ -72,8 +72,6 @@ def test_db_relation(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: 
 
     # Check that the charms resolve after the relations
     status = juju.status()
-    logger.info("Juju status:")
-    logger.info(status.apps[APP_NAME].units[APP_NAME + "/0"].workload_status)
     assert status.apps[APP_NAME].units[APP_NAME + "/0"].is_active
 
     # Get the config of the gatus charm
@@ -139,10 +137,16 @@ def test_invalid_endpoints_config(juju: jubilant.Juju):
     """Test that the endpoint config is correctly parsed."""
     with open("tests/data/endpoints-invalid.yaml", "r") as f:
         endpoints_string = f.read()
-
     juju.config(APP_NAME, {"endpoints": endpoints_string})
+
+    # Wait for the model to settle
+    juju.wait(lambda status: jubilant.all_agents_idle(status, APP_NAME), timeout=300, delay=10)
+
     # Check that the charm is blocked by the invalid config
-    juju.wait(lambda status: jubilant.all_blocked(status, APP_NAME), timeout=300, delay=10)
+    status = juju.status()
+    workload_status = status.apps[APP_NAME].units[APP_NAME + "/0"].workload_status
+    assert workload_status.current == "blocked"
+    assert workload_status.message == "Invalid YAML structure on endpoints"
 
 
 def test_endpoints_config(juju: jubilant.Juju):
@@ -185,10 +189,16 @@ def test_invalid_announcements_config(juju: jubilant.Juju):
     """Test that the endpoint config is correctly parsed."""
     with open("tests/data/announcements-invalid.yaml", "r") as f:
         announcements_string = f.read()
-
     juju.config(APP_NAME, {"announcements": announcements_string})
+
+    # Wait for the model to settle
+    juju.wait(lambda status: jubilant.all_agents_idle(status, APP_NAME), timeout=300, delay=10)
+
     # Check that the charm is blocked by the invalid config
-    juju.wait(lambda status: jubilant.all_blocked(status, APP_NAME), timeout=300, delay=10)
+    status = juju.status()
+    workload_status = status.apps[APP_NAME].units[APP_NAME + "/0"].workload_status
+    assert workload_status.current == "blocked"
+    assert workload_status.message == "Failed to validate Gatus configuration"
 
 
 def test_announcements_config(juju: jubilant.Juju):

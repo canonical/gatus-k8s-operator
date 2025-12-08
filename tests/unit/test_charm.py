@@ -67,8 +67,9 @@ def test_invalid_announcements():
     try:
         config = yaml.safe_load(config_string)
     except yaml.YAMLError as e:
-        logger.error(f"Failed to parse config.yaml: {e}")
+        logger.error(f"Failed to parse yaml: {e}")
         raise
+
     with pytest.raises(ValidationError):
         GatusConfig.model_validate(config)
 
@@ -81,7 +82,8 @@ def test_invalid_endpoints():
     try:
         config = yaml.safe_load(config_string)
     except yaml.YAMLError as e:
-        logger.error(f"Failed to parse config.yaml: {e}")
+        logger.error(f"Failed to parse yaml: {e}")
         raise
+
     with pytest.raises(ValidationError):
         GatusConfig.model_validate(config)
