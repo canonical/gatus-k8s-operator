@@ -11,12 +11,9 @@ import yaml
 from ops.model import ActiveStatus, BlockedStatus
 from pydantic import ValidationError
 
+from constants import INVALID_FILTER_BY_MESSAGE, INVALID_SORT_BY_MESSAGE
 from gatus import GatusConfig
-from validator import (
-    INVALID_FILTER_BY_MESSAGE,
-    INVALID_SORT_BY_MESSAGE,
-    GatusValidator,
-)
+from validator import GatusValidator
 
 logger = logging.getLogger(__name__)
 

@@ -9,13 +9,10 @@ import yaml
 from ops.model import ActiveStatus, BlockedStatus, ConfigData, StatusBase
 from pydantic import ValidationError
 
+from constants import FAILED_TO_VALIDATE, INVALID_FILTER_BY_MESSAGE, INVALID_SORT_BY_MESSAGE
 from gatus import GatusConfig
 
 logger = logging.getLogger(__name__)
-
-INVALID_SORT_BY_MESSAGE = "Invalid default sort order. Valid values are: name, group, health"
-INVALID_FILTER_BY_MESSAGE = "Invalid default filter. Valid values are: none, failing, unstable"
-
 
 class GatusValidator:
     """Validation functions for Gatus charm config."""
@@ -68,7 +65,7 @@ class GatusValidator:
             GatusConfig.model_validate(config_dict)
         except ValidationError as e:
             logger.error(e)
-            return "Failed to validate Gatus configuration"
+            return FAILED_TO_VALIDATE
         except Exception as e:
             logger.error(e)
             return "Unexpected error in Gatus configuration"

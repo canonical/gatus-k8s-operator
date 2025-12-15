@@ -13,12 +13,10 @@ from ops.framework import EventBase
 from ops.model import Container, ModelError, SecretNotFoundError
 from ops.pebble import LayerDict
 
+from constants import CONTAINER_NAME, SERVICE_NAME
 from validator import GatusValidator
 
 logger = logging.getLogger(__name__)
-
-SERVICE_NAME = "go"
-CONTAINER_NAME = "app"
 
 
 class GatusCharm(paas_charm.go.Charm):
