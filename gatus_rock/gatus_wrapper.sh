@@ -6,12 +6,23 @@
 set -euo pipefail
 
 CONFIG_DIR="/config"
+UI_FILE="${CONFIG_DIR}/ui.yaml"
 STORAGE_FILE="${CONFIG_DIR}/storage.yaml"
 ALERTS_FILE="${CONFIG_DIR}/alerting.yaml"
 ANNOUNCEMENTS_FILE="${CONFIG_DIR}/announcements.yaml"
 ENDPOINTS_FILE="${CONFIG_DIR}/endpoints.yaml"
 
 mkdir -p "$CONFIG_DIR"
+
+# UI configuration
+cat > "$UI_FILE" <<EOF
+ui:
+  header: "${APP_UI_HEADER:-Gatus}"
+  logo: "${APP_UI_LOGO:-}"
+  dark-mode: "${APP_UI_DARK_MODE:-false}"
+  default-sort-by: "${APP_UI_DEFAULT_SORT_BY:-name}"
+  default-filter-by: "${APP_UI_DEFAULT_FILTER_BY:-none}"
+EOF
 
 # If there is a PostgreSQL database relation, use it to configure the storage
 if [[ -n "${POSTGRESQL_DB_CONNECT_STRING:-}" ]]; then

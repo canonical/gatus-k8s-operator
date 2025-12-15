@@ -63,6 +63,35 @@ config:
         Whether to use an insecure connection to Mattermost.
       type: boolean
       default: false
+    ui-header:
+      description: |
+        The header text to display in the Gatus UI.
+      type: string
+      default: "Gatus"
+    ui-logo:
+      description: |
+        The logo to display in the Gatus UI. Defaults to the Gatus logo.
+      type: string
+      default: ""
+    ui-dark-mode:
+      description: |
+        Whether to use a dark theme for the Gatus UI.
+      type: boolean
+      default: true
+    ui-default-sort-by:
+      description: |
+        The default sort order for the endpoints.
+
+        Valid values are: "name", "group", "health".
+      type: string
+      default: "name"
+    ui-default-filter-by:
+      description: |
+        The default filter for the endpoints.
+
+        Valid values are: "none", "failing", "unstable".
+      type: string
+      default: "none"
 
 requires:
   postgresql:
