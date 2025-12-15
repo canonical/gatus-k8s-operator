@@ -19,7 +19,7 @@ cat > "$UI_FILE" <<EOF
 ui:
   header: "${APP_UI_HEADER:-Gatus}"
   logo: "${APP_UI_LOGO:-}"
-  dark-mode: "${APP_UI_DARK_MODE:-false}"
+  dark-mode: ${APP_UI_DARK_MODE:-true}
   default-sort-by: "${APP_UI_DEFAULT_SORT_BY:-name}"
   default-filter-by: "${APP_UI_DEFAULT_FILTER_BY:-none}"
 EOF
@@ -34,6 +34,7 @@ EOF
 
 else
 	echo "POSTGRESQL_DB_CONNECT_STRING is not set"
+	rm -f "$STORAGE_FILE"
 fi
 
 # If there is a Juju secret with the Mattermost webhook URL, use it to configure alerting
@@ -51,6 +52,7 @@ EOF
 	fi
 else
 	echo "MATTERMOST_WEBHOOK_URL is not set"
+	rm -f "$ALERTS_FILE"
 fi
 
 # If there is an app config with announcements, dump it into the announcements.yaml file
@@ -58,6 +60,7 @@ if [[ -n "${APP_ANNOUNCEMENTS:-}" ]]; then
 	echo "${APP_ANNOUNCEMENTS}" > "$ANNOUNCEMENTS_FILE"
 else
 	echo "APP_ANNOUNCEMENTS is not set"
+	rm -f "$ANNOUNCEMENTS_FILE"
 fi
 
 # If there is an app config with endpoints, dump it into the endpoints.yaml file
