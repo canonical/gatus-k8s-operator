@@ -14,6 +14,7 @@ from gatus import GatusConfig
 
 logger = logging.getLogger(__name__)
 
+
 class GatusValidator:
     """Validation functions for Gatus charm config."""
 
