@@ -19,8 +19,8 @@ cat > "$UI_FILE" <<EOF
 ui:
   header: "${APP_UI_HEADER:-Gatus}"
   logo: "${APP_UI_LOGO:-}"
-  dashboard-heading: "${APP_UI_DASHBOARD_HEADING:-}"
-  dashboard-subheading: "${APP_UI_DASHBOARD_SUBHEADING:-}"
+  dashboard-heading: "${APP_UI_DASHBOARD_HEADING:-Health Dashboard}"
+  dashboard-subheading: "${APP_UI_DASHBOARD_SUBHEADING:-Monitor the health of your endpoints in real-time}"
   dark-mode: ${APP_UI_DARK_MODE:-true}
   default-sort-by: "${APP_UI_DEFAULT_SORT_BY:-name}"
   default-filter-by: "${APP_UI_DEFAULT_FILTER_BY:-none}"

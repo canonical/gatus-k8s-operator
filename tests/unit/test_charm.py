@@ -101,7 +101,15 @@ def test_invalid_endpoints():
                 "ui-default-filter-by": "none",
             },
             ActiveStatus(),
-            id="Valid config",
+            id="Valid default config",
+        ),
+        pytest.param(
+            {
+                "ui-default-sort-by": "group",
+                "ui-default-filter-by": "failing",
+            },
+            ActiveStatus(),
+            id="Valid modified config",
         ),
         pytest.param(
             {
@@ -121,8 +129,8 @@ def test_invalid_endpoints():
         ),
     ],
 )
-def test_config(config, expected_status):
-    """Test that the charm rejects invalid ui-default-sort-by."""
+def test_ui_config_validation(config, expected_status):
+    """Test that the charm rejects invalid ui config options."""
     status = GatusValidator.validate(config)
 
     assert status == expected_status
