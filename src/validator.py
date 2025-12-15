@@ -50,6 +50,8 @@ class GatusValidator:
             return None
 
         logger.info(f"Validating {config_key} config: {config_item}")
+
+        # First try to parse the YAML as a dictionary
         try:
             config_dict = yaml.safe_load(config_item)
         except yaml.YAMLError as e:
@@ -62,6 +64,7 @@ class GatusValidator:
             logger.error(e)
             return f"Unexpected error on {config_key}"
 
+        # Then check if the dictionary is valid according to the model
         try:
             GatusConfig.model_validate(config_dict)
         except ValidationError as e:
