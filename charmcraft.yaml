@@ -73,23 +73,34 @@ config:
         The logo to display in the Gatus UI. Defaults to the Gatus logo.
       type: string
       default: ""
+    ui-dashboard-heading:
+      description: |
+        Dashboard title between header and endpoints.
+      type: string
+      default: "Health Dashboard"
+    ui-dashboard-subheading:
+      description: |
+        Dashboard description between header and endpoints.
+      type: string
+      default: "Monitor the health of your endpoints in real-time"
     ui-dark-mode:
       description: |
-        Whether to use a dark theme for the Gatus UI.
+        Whether to enable dark mode by default.
+        Note that this is superseded by the user's operating system theme preferences.
       type: boolean
       default: true
     ui-default-sort-by:
       description: |
-        The default sort order for the endpoints.
-
-        Valid values are: "name", "group", "health".
+        Default sorting option for endpoints in the dashboard.
+        Can be "name", "group", or "health".
+        Note that user preferences override this.
       type: string
       default: "name"
     ui-default-filter-by:
       description: |
-        The default filter for the endpoints.
-
-        Valid values are: "none", "failing", "unstable".
+        Default filter option for endpoints in the dashboard.
+        Can be "none", "failing", or "unstable".
+        Note that user preferences override this.
       type: string
       default: "none"
 
