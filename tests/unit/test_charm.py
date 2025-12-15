@@ -124,7 +124,7 @@ def test_invalid_endpoints():
         ),
     ],
 )
-def test_config(config, expected_status, base_state):
+def test_config(config, expected_status):
     """Test that the charm rejects invalid ui-default-sort-by."""
     status = GatusValidator.validate(config)
 
