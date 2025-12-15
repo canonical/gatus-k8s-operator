@@ -8,7 +8,6 @@ import logging
 import pathlib
 
 import jubilant
-import pytest
 import requests
 import yaml
 from pydantic import ValidationError
@@ -48,7 +47,6 @@ def test_deploy(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[
     assert any(endpoint.get("name") == "Ubuntu.com" for endpoint in data)
 
 
-@pytest.mark.skip(reason="Slow")
 def test_db_relation(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[str, str]):
     """Deploy the database charm and check that the gatus charm can connect to it.
 
