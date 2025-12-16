@@ -12,6 +12,7 @@ import requests
 import yaml
 from pydantic import ValidationError
 
+from constants import FAILED_TO_VALIDATE
 from gatus import GatusConfig
 
 logger = logging.getLogger(__name__)
@@ -146,7 +147,7 @@ def test_invalid_endpoints_config(juju: jubilant.Juju):
     status = juju.status()
     workload_status = status.apps[APP_NAME].units[APP_NAME + "/0"].workload_status
     assert workload_status.current == "blocked"
-    assert workload_status.message == "Invalid YAML structure on endpoints"
+    assert workload_status.message == FAILED_TO_VALIDATE
 
 
 def test_endpoints_config(juju: jubilant.Juju):
@@ -198,7 +199,7 @@ def test_invalid_announcements_config(juju: jubilant.Juju):
     status = juju.status()
     workload_status = status.apps[APP_NAME].units[APP_NAME + "/0"].workload_status
     assert workload_status.current == "blocked"
-    assert workload_status.message == "Failed to validate Gatus configuration"
+    assert workload_status.message == FAILED_TO_VALIDATE
 
 
 def test_announcements_config(juju: jubilant.Juju):

@@ -6,12 +6,25 @@
 set -euo pipefail
 
 CONFIG_DIR="/config"
+UI_FILE="${CONFIG_DIR}/ui.yaml"
 STORAGE_FILE="${CONFIG_DIR}/storage.yaml"
 ALERTS_FILE="${CONFIG_DIR}/alerting.yaml"
 ANNOUNCEMENTS_FILE="${CONFIG_DIR}/announcements.yaml"
 ENDPOINTS_FILE="${CONFIG_DIR}/endpoints.yaml"
 
 mkdir -p "$CONFIG_DIR"
+
+# UI configuration
+cat > "$UI_FILE" <<EOF
+ui:
+  header: "${APP_UI_HEADER:-Gatus}"
+  logo: "${APP_UI_LOGO:-}"
+  dashboard-heading: "${APP_UI_DASHBOARD_HEADING:-Health Dashboard}"
+  dashboard-subheading: "${APP_UI_DASHBOARD_SUBHEADING:-Monitor the health of your endpoints in real-time}"
+  dark-mode: ${APP_UI_DARK_MODE:-true}
+  default-sort-by: "${APP_UI_DEFAULT_SORT_BY:-name}"
+  default-filter-by: "${APP_UI_DEFAULT_FILTER_BY:-none}"
+EOF
 
 # If there is a PostgreSQL database relation, use it to configure the storage
 if [[ -n "${POSTGRESQL_DB_CONNECT_STRING:-}" ]]; then
@@ -23,6 +36,7 @@ EOF
 
 else
 	echo "POSTGRESQL_DB_CONNECT_STRING is not set"
+	rm -f "$STORAGE_FILE"
 fi
 
 # If there is a Juju secret with the Mattermost webhook URL, use it to configure alerting
@@ -40,6 +54,7 @@ EOF
 	fi
 else
 	echo "MATTERMOST_WEBHOOK_URL is not set"
+	rm -f "$ALERTS_FILE"
 fi
 
 # If there is an app config with announcements, dump it into the announcements.yaml file
@@ -47,6 +62,7 @@ if [[ -n "${APP_ANNOUNCEMENTS:-}" ]]; then
 	echo "${APP_ANNOUNCEMENTS}" > "$ANNOUNCEMENTS_FILE"
 else
 	echo "APP_ANNOUNCEMENTS is not set"
+	rm -f "$ANNOUNCEMENTS_FILE"
 fi
 
 # If there is an app config with endpoints, dump it into the endpoints.yaml file

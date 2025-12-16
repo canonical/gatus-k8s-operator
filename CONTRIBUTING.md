@@ -80,6 +80,15 @@ make [build-rock pack] deploy
 make refresh
 ```
 
+To relate to a local PostgreSQL database, you'll need self-signed certificates. Run:
+
+```sh
+juju deploy postgresql-k8s
+juju deploy self-signed-certificates --channel 1/stable # necessary
+juju integrate postgresql-k8s self-signed-certificates
+juju integrate gatus-k8s postgresql-k8s
+```
+
 ## Testing
 
 This project uses `tox` for managing test environments. There are some pre-configured environments

@@ -9,18 +9,14 @@ import typing
 
 import ops
 import paas_charm.go
-import yaml
 from ops.framework import EventBase
-from ops.model import BlockedStatus, Container, ModelError, SecretNotFoundError
+from ops.model import Container, ModelError, SecretNotFoundError
 from ops.pebble import LayerDict
-from pydantic import ValidationError
 
-from gatus import GatusConfig
+from constants import CONTAINER_NAME, SERVICE_NAME
+from validator import GatusValidator
 
 logger = logging.getLogger(__name__)
-
-SERVICE_NAME = "go"
-CONTAINER_NAME = "app"
 
 
 class GatusCharm(paas_charm.go.Charm):
@@ -39,16 +35,14 @@ class GatusCharm(paas_charm.go.Charm):
         self.framework.observe(self.on.config_changed, self._update)
         self.framework.observe(self.on.secret_changed, self._update)
 
-        validation_msg = self._validate_config()
-        if validation_msg:
-            self.unit.status = BlockedStatus(validation_msg)
+        self.unit.status = GatusValidator.validate(self.model.config)
 
     def restart(self, rerun_migrations: bool = False) -> None:
         """Override the default restart to add a validation guard."""
-        validation_msg = self._validate_config()
-        if validation_msg:
-            logger.warning(f"Config invalid, preventing restart: {validation_msg}")
-            self.unit.status = BlockedStatus(validation_msg)
+        status = GatusValidator.validate(self.model.config)
+        if status.name != "active":
+            logger.warning(f"Config invalid, preventing restart: {status.message}")
+            self.unit.status = status
             return
 
         super().restart(rerun_migrations)
@@ -155,46 +149,6 @@ class GatusCharm(paas_charm.go.Charm):
 
         container.add_layer("go-env-layer", env_layer, combine=True)
         container.replan()
-
-    def _validate_config(self) -> str | None:
-        """Validate the application configuration."""
-        logger.info("Validating config")
-        config_keys = ["announcements", "endpoints"]
-        config_dict = {}
-
-        for config_key in config_keys:
-            if config_key not in self.model.config:
-                continue
-
-            config_item = str(self.model.config[config_key])
-            if not config_item:
-                continue
-
-            logger.info(f"Validating {config_key} config: {config_item}")
-            try:
-                data = yaml.safe_load(config_item)
-                # Merge the dicts
-                config_dict = config_dict | data
-            except yaml.YAMLError as e:
-                logger.error(e)
-                return f"Failed to parse YAML based on {config_key}"
-            except TypeError as e:
-                logger.error(e)
-                return f"Invalid YAML structure on {config_key}"
-            except Exception as e:
-                logger.error(e)
-                return f"Uexpected error on {config_key}"
-
-        try:
-            GatusConfig.model_validate(config_dict)
-        except ValidationError as e:
-            logger.error(e)
-            return "Failed to validate Gatus configuration"
-        except Exception as e:
-            logger.error(e)
-            return "Unexpected error in Gatus configuration"
-
-        return None
 
 
 if __name__ == "__main__":  # pragma: nocover

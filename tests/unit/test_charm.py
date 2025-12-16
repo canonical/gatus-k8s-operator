@@ -8,9 +8,12 @@ from datetime import datetime, timezone
 
 import pytest
 import yaml
+from ops.model import ActiveStatus, BlockedStatus
 from pydantic import ValidationError
 
+from constants import INVALID_FILTER_BY_MESSAGE, INVALID_SORT_BY_MESSAGE
 from gatus import GatusConfig
+from validator import GatusValidator
 
 logger = logging.getLogger(__name__)
 
@@ -87,3 +90,47 @@ def test_invalid_endpoints():
 
     with pytest.raises(ValidationError):
         GatusConfig.model_validate(config)
+
+
+@pytest.mark.parametrize(
+    "config, expected_status",
+    [
+        pytest.param(
+            {
+                "ui-default-sort-by": "name",
+                "ui-default-filter-by": "none",
+            },
+            ActiveStatus(),
+            id="Valid default config",
+        ),
+        pytest.param(
+            {
+                "ui-default-sort-by": "group",
+                "ui-default-filter-by": "failing",
+            },
+            ActiveStatus(),
+            id="Valid modified config",
+        ),
+        pytest.param(
+            {
+                "ui-default-sort-by": "invalid",
+                "ui-default-filter-by": "none",
+            },
+            BlockedStatus(INVALID_SORT_BY_MESSAGE),
+            id="Invalid default-sort-by",
+        ),
+        pytest.param(
+            {
+                "ui-default-sort-by": "name",
+                "ui-default-filter-by": "invalid",
+            },
+            BlockedStatus(INVALID_FILTER_BY_MESSAGE),
+            id="Invalid default-filter-by",
+        ),
+    ],
+)
+def test_ui_config_validation(config, expected_status):
+    """Test that the charm rejects invalid ui config options."""
+    status = GatusValidator.validate(config)
+
+    assert status == expected_status
