@@ -14,3 +14,7 @@ jobs:
     secrets: inherit
     with:
       channel: latest/edge
+      # Map the 'gatus' resource built by Rockcraft and published to GHCR
+      # to the 'app-image' resource expected by the charm.
+      resource-mapping: '{"gatus": "app-image"}'
+
