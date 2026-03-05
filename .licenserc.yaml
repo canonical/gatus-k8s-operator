@@ -27,6 +27,7 @@ header:
     - '**/icon.svg'
     - '**/LICENSE'
     - '**/trivy.yaml'
+    - '**/*.patch'
     - '.eslintignore'
     - '.gitattributes'
     - '.node-version'
