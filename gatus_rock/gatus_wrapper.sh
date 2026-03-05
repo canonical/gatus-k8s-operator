@@ -1,4 +1,7 @@
 #!/bin/bash
+# Copyright 2026 Canonical Ltd.
+# See LICENSE file for licensing details.
+
 
 # Copyright 2025 Canonical Ltd.
 # See LICENSE file for licensing details.
