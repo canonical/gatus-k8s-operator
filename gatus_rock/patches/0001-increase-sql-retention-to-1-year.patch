@@ -1,7 +1,7 @@
 From 8fc92e3b37467825ae986560ab1899391dce7c8f Mon Sep 17 00:00:00 2001
 From: Renan Greca <renan.greca@canonical.com>
 Date: Thu, 5 Mar 2026 18:30:41 +0100
-Subject: [PATCH] increase uptime to 1 year
+Subject: [PATCH] increase sql data retention to 1 year
 
 ---
  storage/store/sql/sql.go | 8 ++++----
