@@ -20,7 +20,7 @@ index 32e2aff8..48e85be0 100644
 -	uptimeRetention                  = 30 * 24 * time.Hour // Minimum duration that must be kept to operate as intended
 -	uptimeHourlyBuffer               = 48 * time.Hour      // Number of hours to buffer from now when determining which hourly uptime entries can be merged into daily uptime entries
 +	uptimeTotalEntriesMergeThreshold = 100                   // Maximum number of uptime entries before triggering a merge
-+	uptimeAgeCleanUpThreshold        = 340 * 24 * time.Hour  // Maximum uptime age before triggering a cleanup
++	uptimeAgeCleanUpThreshold        = 370 * 24 * time.Hour  // Maximum uptime age before triggering a cleanup
 +	uptimeRetention                  = 366 * 24 * time.Hour  // Minimum duration that must be kept to operate as intended
 +	uptimeHourlyBuffer               = 48 * time.Hour        // Number of hours to buffer from now when determining which hourly uptime entries can be merged into daily uptime entries
  
