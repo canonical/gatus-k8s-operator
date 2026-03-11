@@ -66,7 +66,7 @@ def test_db_relation(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: 
     juju.wait(jubilant.all_active, timeout=600, delay=30)
 
     # Add the charm relations
-    juju.integrate(PG_APP_NAME, SELF_SIGNED_CERT_APP_NAME)
+    juju.integrate(f"{PG_APP_NAME}:certificates", f"{SELF_SIGNED_CERT_APP_NAME}:certificates")
     juju.wait(jubilant.all_active, timeout=300, delay=30)
     juju.integrate(APP_NAME, PG_APP_NAME)
     juju.wait(jubilant.all_active, timeout=300, delay=30)

@@ -1,0 +1,31 @@
+From 8fc92e3b37467825ae986560ab1899391dce7c8f Mon Sep 17 00:00:00 2001
+From: Renan Greca <renan.greca@canonical.com>
+Date: Thu, 5 Mar 2026 18:30:41 +0100
+Subject: [PATCH] increase sql data retention to 1 year
+
+---
+ storage/store/sql/sql.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/storage/store/sql/sql.go b/storage/store/sql/sql.go
+index 32e2aff8..48e85be0 100644
+--- a/storage/store/sql/sql.go
++++ b/storage/store/sql/sql.go
+@@ -33,10 +33,10 @@ const (
+ 	eventsAboveMaximumCleanUpThreshold  = 10 // Maximum number of events above the configured maximum before triggering a cleanup
+ 	resultsAboveMaximumCleanUpThreshold = 10 // Maximum number of results above the configured maximum before triggering a cleanup
+ 
+-	uptimeTotalEntriesMergeThreshold = 100                 // Maximum number of uptime entries before triggering a merge
+-	uptimeAgeCleanUpThreshold        = 32 * 24 * time.Hour // Maximum uptime age before triggering a cleanup
+-	uptimeRetention                  = 30 * 24 * time.Hour // Minimum duration that must be kept to operate as intended
+-	uptimeHourlyBuffer               = 48 * time.Hour      // Number of hours to buffer from now when determining which hourly uptime entries can be merged into daily uptime entries
++	uptimeTotalEntriesMergeThreshold = 100                   // Maximum number of uptime entries before triggering a merge
++	uptimeAgeCleanUpThreshold        = 370 * 24 * time.Hour  // Maximum uptime age before triggering a cleanup
++	uptimeRetention                  = 366 * 24 * time.Hour  // Minimum duration that must be kept to operate as intended
++	uptimeHourlyBuffer               = 48 * time.Hour        // Number of hours to buffer from now when determining which hourly uptime entries can be merged into daily uptime entries
+ 
+ 	cacheTTL = 10 * time.Minute
+ )
+-- 
+2.43.0
+

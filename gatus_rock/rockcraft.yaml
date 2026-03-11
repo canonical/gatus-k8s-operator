@@ -3,7 +3,7 @@
 
 name: gatus
 base: ubuntu@24.04
-version: '5.33.1'
+version: '5.35.0.1'  # Patched
 summary: "Gatus: Automated health and uptime monitoring tool for your services."
 description: |
     Gatus is an automated service health and uptime monitoring tool. It allows you to define endpoints to monitor, provides a real-time dashboard, and supports alerting via multiple channels when issues are detected. Gatus is designed to be simple to configure and deploy, making it ideal for ensuring the reliability of your services and infrastructure.
@@ -19,12 +19,28 @@ services:
     startup: enabled
 
 parts:
+  patches:
+    plugin: dump
+    source: ./patches
+    organize:
+      '*.patch': patches/
+    stage:
+      - patches/*.patch
+    prime:
+      - "-*"
+
   gatus:
+    after: [patches]
     plugin: go
     source: https://github.com/TwiN/gatus
     source-type: git
-    source-tag: v5.33.1
+    source-tag: v5.35.0
     source-depth: 1
+    build-packages:
+      - git
+    override-build: |
+      git apply --ignore-whitespace ${CRAFT_STAGE}/patches/*.patch
+      craftctl default
     organize:
       bin/gatus: gatus/bin/gatus
     build-snaps:
