@@ -1,0 +1,9 @@
+copilot:
+  # The version of the toolkit to use
+  version: "v0.7.0"
+
+  # The collections you want to install
+  collections:
+    # - copilot-toolkit
+    - charm-python
+    - pfe-charms
