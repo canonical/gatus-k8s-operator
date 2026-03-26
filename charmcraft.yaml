@@ -27,12 +27,6 @@ platforms:
 extensions:
   - go-framework
 
-parts:
-  charm:
-    plugin: charm
-    build-environment:
-      - PIP_CONSTRAINT: "constraints.txt"
-
 config:
   options:
     announcements:
