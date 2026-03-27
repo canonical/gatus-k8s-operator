@@ -176,10 +176,10 @@ def test_resolve_secret_placeholders_substitutes_known_keys():
     from constants import MM_WEBHOOK_PLACEHOLDER_RE
 
     raw_yaml = "webhook-url: '[mm-webhook:trino]'"
-    secret_content = {"mm-webhook-trino": "https://chat.example.com/hooks/abc123"}
+    secret_content = {"trino": "https://chat.example.com/hooks/abc123"}
 
     def replacer(match):
-        key = f"mm-webhook-{match.group(1)}"
+        key = match.group(1)
         return secret_content[key]
 
     resolved = MM_WEBHOOK_PLACEHOLDER_RE.sub(replacer, raw_yaml)
@@ -192,12 +192,12 @@ def test_resolve_secret_placeholders_multiple_keys():
 
     raw_yaml = "webhook-url: '[mm-webhook:default]'\nprovider-override:\n  webhook-url: '[mm-webhook:trino]'"
     secret_content = {
-        "mm-webhook-default": "https://chat.example.com/hooks/default",
-        "mm-webhook-trino": "https://chat.example.com/hooks/trino",
+        "default": "https://chat.example.com/hooks/default",
+        "trino": "https://chat.example.com/hooks/trino",
     }
 
     def replacer(match):
-        key = f"mm-webhook-{match.group(1)}"
+        key = {match.group(1)
         return secret_content[key]
 
     resolved = MM_WEBHOOK_PLACEHOLDER_RE.sub(replacer, raw_yaml)
@@ -278,20 +278,3 @@ def test_validator_blocks_on_invalid_resolved_endpoints():
     status = GatusValidator.validate(config, resolved_endpoints=resolved_endpoints)
     assert isinstance(status, BlockedStatus)
     assert status.message == FAILED_TO_VALIDATE
-
-
-def test_backwards_compat_mattermost_webhook_url_key():
-    """Test that mattermost-webhook-url key still works as the default webhook URL."""
-    secret_content_old = {"mattermost-webhook-url": "https://old.example.com/hooks/abc"}
-    secret_content_new = {"mm-webhook-default": "https://new.example.com/hooks/abc"}
-    secret_content_both = {
-        "mm-webhook-default": "https://new.example.com/hooks/abc",
-        "mattermost-webhook-url": "https://old.example.com/hooks/abc",
-    }
-
-    def get_webhook_url_with_fallback(secret_content):
-        return secret_content.get("mm-webhook-default") or secret_content.get("mattermost-webhook-url")
-
-    assert get_webhook_url_with_fallback(secret_content_old) == "https://old.example.com/hooks/abc"
-    assert get_webhook_url_with_fallback(secret_content_new) == "https://new.example.com/hooks/abc"
-    assert get_webhook_url_with_fallback(secret_content_both) == "https://new.example.com/hooks/abc"
