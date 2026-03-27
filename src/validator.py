@@ -39,9 +39,7 @@ class GatusValidator:
         return ActiveStatus()
 
     @classmethod
-    def _validate_yaml(
-        cls, config: ConfigData, config_key: str, resolved_yaml: str | None = None
-    ) -> str | None:
+    def _validate_yaml(cls, config: ConfigData, config_key: str, resolved_yaml: str | None = None) -> str | None:
         """Validate the YAML configuration for announcements and endpoints."""
         config_dict = {}
 

@@ -190,11 +190,7 @@ def test_resolve_secret_placeholders_multiple_keys():
     """Test that _resolve_secret_placeholders substitutes multiple placeholders."""
     from constants import MM_WEBHOOK_PLACEHOLDER_RE
 
-    raw_yaml = (
-        "webhook-url: '[mm-webhook:default]'\n"
-        "provider-override:\n"
-        "  webhook-url: '[mm-webhook:trino]'"
-    )
+    raw_yaml = "webhook-url: '[mm-webhook:default]'\nprovider-override:\n  webhook-url: '[mm-webhook:trino]'"
     secret_content = {
         "mm-webhook-default": "https://chat.example.com/hooks/default",
         "mm-webhook-trino": "https://chat.example.com/hooks/trino",
@@ -299,4 +295,3 @@ def test_backwards_compat_mattermost_webhook_url_key():
     assert get_webhook_url_with_fallback(secret_content_old) == "https://old.example.com/hooks/abc"
     assert get_webhook_url_with_fallback(secret_content_new) == "https://new.example.com/hooks/abc"
     assert get_webhook_url_with_fallback(secret_content_both) == "https://new.example.com/hooks/abc"
-

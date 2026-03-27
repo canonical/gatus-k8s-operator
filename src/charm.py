@@ -166,9 +166,7 @@ class GatusCharm(paas_charm.go.Charm):
 
         secret_content = self._get_juju_secret_content(MATTERMOST_ALERTING_CONFIG)
         if secret_content:
-            webhook_url = secret_content.get("mm-webhook-default") or secret_content.get(
-                "mattermost-webhook-url"
-            )
+            webhook_url = secret_content.get("mm-webhook-default") or secret_content.get("mattermost-webhook-url")
             if webhook_url:
                 env["MATTERMOST_WEBHOOK_URL"] = webhook_url
 
@@ -179,9 +177,7 @@ class GatusCharm(paas_charm.go.Charm):
                     return False
                 env["APP_ENDPOINTS"] = resolved
         elif MM_WEBHOOK_PLACEHOLDER_RE.search(str(self.model.config.get("endpoints", ""))):
-            logger.error(
-                "Endpoints config contains secret placeholders but mattermost-alerting is not configured"
-            )
+            logger.error("Endpoints config contains secret placeholders but mattermost-alerting is not configured")
             self.unit.status = BlockedStatus(
                 "Endpoints config contains secret placeholders but mattermost-alerting is not configured"
             )
