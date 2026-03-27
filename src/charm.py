@@ -10,10 +10,10 @@ import typing
 import ops
 import paas_charm.go
 from ops.framework import EventBase
-from ops.model import Container, ModelError, SecretNotFoundError
+from ops.model import BlockedStatus, Container, ModelError, SecretNotFoundError
 from ops.pebble import LayerDict
 
-from constants import CONTAINER_NAME, SERVICE_NAME
+from constants import CONTAINER_NAME, SECRET_PLACEHOLDER_RE, SERVICE_NAME
 from validator import GatusValidator
 
 logger = logging.getLogger(__name__)
@@ -64,7 +64,8 @@ class GatusCharm(paas_charm.go.Charm):
             return
 
         # Update environment variables based on config
-        self._update_env(container)
+        if not self._update_env(container):
+            return
 
         self.restart()
 
@@ -74,6 +75,21 @@ class GatusCharm(paas_charm.go.Charm):
         Args:
             config_name: The name of the charm config. It should refer to a Juju secret ID.
             secret_key: The key of the secret to retrieve.
+
+        """
+        content = self._get_juju_secret_content(config_name)
+        if content is None:
+            return None
+        value = content.get(secret_key)
+        if value is None:
+            logger.error("No '%s' in secret for config '%s'.", secret_key, config_name)
+        return value
+
+    def _get_juju_secret_content(self, config_name: str) -> dict[str, str] | None:
+        """Get the full content dict of a Juju secret based on the charm config.
+
+        Args:
+            config_name: The name of the charm config. It should refer to a Juju secret ID.
 
         """
         config = self.model.config
@@ -90,13 +106,9 @@ class GatusCharm(paas_charm.go.Charm):
 
         try:
             secret = self.model.get_secret(id=secret_id)
-            content = secret.get_content(refresh=True)
-            value = content[secret_key]
+            return secret.get_content(refresh=True)
         except SecretNotFoundError:
-            logger.error(
-                "Secret '%s' not found.",
-                secret_id,
-            )
+            logger.error("Secret '%s' not found.", secret_id)
             return None
         except ModelError as e:
             logger.error(
@@ -105,30 +117,71 @@ class GatusCharm(paas_charm.go.Charm):
                 str(e),
             )
             return None
-        except KeyError:
-            logger.error(
-                "No '%s' in secret '%s'.",
-                secret_key,
-                secret_id,
-            )
+
+    def _resolve_secret_placeholders(self, raw_yaml: str, secret_content: dict[str, str]) -> str | None:
+        """Replace [secret:key-name] placeholders with values from the secret content dict.
+
+        Args:
+            raw_yaml: The raw YAML string that may contain [secret:key-name] placeholders.
+            secret_content: The full content dict of the Juju secret.
+
+        Returns:
+            The resolved YAML string, or None if a referenced key was not found (in which case
+            the charm unit status is set to BlockedStatus).
+
+        """
+
+        def replace_placeholder(match) -> str:
+            key = match.group(1)
+            if key not in secret_content:
+                raise KeyError(key)
+            return secret_content[key]
+
+        try:
+            return SECRET_PLACEHOLDER_RE.sub(replace_placeholder, raw_yaml)
+        except KeyError as e:
+            key = str(e).strip("'")
+            logger.error("Secret key '%s' not found in mattermost-alerting secret", key)
+            self.unit.status = BlockedStatus(f"Secret key '{key}' not found in mattermost-alerting secret")
             return None
 
-        return value
-
-    def _update_env(self, container: Container):
+    def _update_env(self, container: Container) -> bool:
         """Create a pebble layer to add environment variables to the container.
 
-        This is necessary for handling Juju secrets.
+        This is necessary for handling Juju secrets and resolving secret placeholders
+        in the endpoints config.
 
         Args:
             container: The container in which to inject the environment variables.
 
+        Returns:
+            True if the update was successful, False if the charm was put into BlockedStatus.
+
         """
         env = {}
 
-        mattermost_webhook_url = self._get_juju_secret("mattermost-alerting", "mattermost-webhook-url")
-        if mattermost_webhook_url:
-            env["MATTERMOST_WEBHOOK_URL"] = mattermost_webhook_url
+        secret_content = self._get_juju_secret_content("mattermost-alerting")
+        if secret_content:
+            webhook_url = secret_content.get("mm-webhook-default") or secret_content.get(
+                "mattermost-webhook-url"
+            )
+            if webhook_url:
+                env["MATTERMOST_WEBHOOK_URL"] = webhook_url
+
+            endpoints_raw = str(self.model.config.get("endpoints", ""))
+            if endpoints_raw and SECRET_PLACEHOLDER_RE.search(endpoints_raw):
+                resolved = self._resolve_secret_placeholders(endpoints_raw, secret_content)
+                if resolved is None:
+                    return False
+                env["APP_ENDPOINTS"] = resolved
+        elif SECRET_PLACEHOLDER_RE.search(str(self.model.config.get("endpoints", ""))):
+            logger.error(
+                "Endpoints config contains secret placeholders but mattermost-alerting is not configured"
+            )
+            self.unit.status = BlockedStatus(
+                "Endpoints config contains secret placeholders but mattermost-alerting is not configured"
+            )
+            return False
 
         log_level = str(self.model.config["log-level"])
         if log_level.lower() in ["info", "debug", "warn", "error", "fatal"]:
@@ -149,6 +202,7 @@ class GatusCharm(paas_charm.go.Charm):
 
         container.add_layer("go-env-layer", env_layer, combine=True)
         container.replan()
+        return True
 
 
 if __name__ == "__main__":  # pragma: nocover

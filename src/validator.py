@@ -9,7 +9,7 @@ import yaml
 from ops.model import ActiveStatus, BlockedStatus, ConfigData, StatusBase
 from pydantic import ValidationError
 
-from constants import FAILED_TO_VALIDATE, INVALID_FILTER_BY_MESSAGE, INVALID_SORT_BY_MESSAGE
+from constants import FAILED_TO_VALIDATE, INVALID_FILTER_BY_MESSAGE, INVALID_SORT_BY_MESSAGE, SECRET_PLACEHOLDER_RE
 from gatus import GatusConfig
 
 logger = logging.getLogger(__name__)
@@ -19,7 +19,7 @@ class GatusValidator:
     """Validation functions for Gatus charm config."""
 
     @classmethod
-    def validate(cls, config: ConfigData) -> StatusBase:
+    def validate(cls, config: ConfigData, resolved_endpoints: str | None = None) -> StatusBase:
         """Validate the application configuration."""
         logger.info("Validating config")
 
@@ -31,14 +31,17 @@ class GatusValidator:
 
         config_keys = ["announcements", "endpoints"]
         for config_key in config_keys:
-            msg = cls._validate_yaml(config, config_key)
+            resolved_yaml = resolved_endpoints if config_key == "endpoints" else None
+            msg = cls._validate_yaml(config, config_key, resolved_yaml=resolved_yaml)
             if msg:
                 return BlockedStatus(msg)
 
         return ActiveStatus()
 
     @classmethod
-    def _validate_yaml(cls, config: ConfigData, config_key: str) -> str | None:
+    def _validate_yaml(
+        cls, config: ConfigData, config_key: str, resolved_yaml: str | None = None
+    ) -> str | None:
         """Validate the YAML configuration for announcements and endpoints."""
         config_dict = {}
 
@@ -51,9 +54,20 @@ class GatusValidator:
 
         logger.info(f"Validating {config_key} config: {config_item}")
 
+        if resolved_yaml is not None:
+            yaml_to_validate = resolved_yaml
+        elif SECRET_PLACEHOLDER_RE.search(config_item):
+            logger.debug(
+                "Skipping validation for %s: contains unresolved secret placeholders",
+                config_key,
+            )
+            return None
+        else:
+            yaml_to_validate = config_item
+
         # First try to parse the YAML as a dictionary
         try:
-            config_dict = yaml.safe_load(config_item)
+            config_dict = yaml.safe_load(yaml_to_validate)
         except yaml.YAMLError as e:
             logger.error(e)
             return f"Failed to parse YAML based on {config_key}"

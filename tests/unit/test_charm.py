@@ -11,8 +11,8 @@ import yaml
 from ops.model import ActiveStatus, BlockedStatus
 from pydantic import ValidationError
 
-from constants import INVALID_FILTER_BY_MESSAGE, INVALID_SORT_BY_MESSAGE
-from gatus import GatusConfig
+from constants import FAILED_TO_VALIDATE, INVALID_FILTER_BY_MESSAGE, INVALID_SORT_BY_MESSAGE
+from gatus import EndpointAlert, GatusConfig, ProviderOverride
 from validator import GatusValidator
 
 logger = logging.getLogger(__name__)
@@ -134,3 +134,169 @@ def test_ui_config_validation(config, expected_status):
     status = GatusValidator.validate(config)
 
     assert status == expected_status
+
+
+def test_provider_override_parsed_from_yaml():
+    """Test that EndpointAlert.provider_override is parsed correctly from YAML."""
+    with open("tests/data/endpoints-with-provider-override.yaml", "r") as f:
+        config_string = f.read()
+
+    config = yaml.safe_load(config_string)
+    gatus_config = GatusConfig.model_validate(config)
+
+    assert gatus_config.endpoints is not None
+    assert len(gatus_config.endpoints) > 0
+    endpoint = gatus_config.endpoints[0]
+    assert endpoint.alerts is not None
+    assert len(endpoint.alerts) > 0
+    alert = endpoint.alerts[0]
+    assert alert.provider_override is not None
+    assert alert.provider_override.webhook_url == "[secret:mm-webhook-channel-1]"
+
+
+def test_endpoint_alert_without_provider_override():
+    """Test that EndpointAlert without provider-override parses correctly."""
+    alert_data = {"type": "mattermost", "description": "Test alert"}
+    alert = EndpointAlert.model_validate(alert_data)
+    assert alert.type == "mattermost"
+    assert alert.provider_override is None
+
+
+def test_provider_override_model():
+    """Test the ProviderOverride model."""
+    override = ProviderOverride.model_validate({"webhook-url": "https://example.com/hook"})
+    assert override.webhook_url == "https://example.com/hook"
+
+    empty_override = ProviderOverride()
+    assert empty_override.webhook_url is None
+
+
+def test_resolve_secret_placeholders_substitutes_known_keys():
+    """Test that _resolve_secret_placeholders correctly substitutes known keys."""
+    from constants import SECRET_PLACEHOLDER_RE
+
+    raw_yaml = "webhook-url: '[secret:mm-webhook-trino]'"
+    secret_content = {"mm-webhook-trino": "https://chat.example.com/hooks/abc123"}
+
+    def replacer(match):
+        key = match.group(1)
+        return secret_content[key]
+
+    resolved = SECRET_PLACEHOLDER_RE.sub(replacer, raw_yaml)
+    assert resolved == "webhook-url: 'https://chat.example.com/hooks/abc123'"
+
+
+def test_resolve_secret_placeholders_multiple_keys():
+    """Test that _resolve_secret_placeholders substitutes multiple placeholders."""
+    from constants import SECRET_PLACEHOLDER_RE
+
+    raw_yaml = (
+        "webhook-url: '[secret:mm-webhook-default]'\n"
+        "provider-override:\n"
+        "  webhook-url: '[secret:mm-webhook-trino]'"
+    )
+    secret_content = {
+        "mm-webhook-default": "https://chat.example.com/hooks/default",
+        "mm-webhook-trino": "https://chat.example.com/hooks/trino",
+    }
+
+    def replacer(match):
+        key = match.group(1)
+        return secret_content[key]
+
+    resolved = SECRET_PLACEHOLDER_RE.sub(replacer, raw_yaml)
+    assert "https://chat.example.com/hooks/default" in resolved
+    assert "https://chat.example.com/hooks/trino" in resolved
+    assert "[secret:" not in resolved
+
+
+def test_validator_skips_endpoints_with_placeholders():
+    """Test that validation is skipped for endpoints YAML containing [secret:...] placeholders."""
+    config = {
+        "ui-default-sort-by": "name",
+        "ui-default-filter-by": "none",
+        "endpoints": (
+            "endpoints:\n"
+            "  - name: Trino\n"
+            "    url: https://trino.example.com\n"
+            "    alerts:\n"
+            "      - type: mattermost\n"
+            "        description: Trino is down\n"
+            "        provider-override:\n"
+            "          webhook-url: '[secret:mm-webhook-trino]'\n"
+        ),
+    }
+
+    status = GatusValidator.validate(config)
+    assert status == ActiveStatus()
+
+
+def test_validator_validates_resolved_endpoints():
+    """Test that validation uses resolved_endpoints when provided."""
+    raw_endpoints = (
+        "endpoints:\n"
+        "  - name: Trino\n"
+        "    url: https://trino.example.com\n"
+        "    alerts:\n"
+        "      - type: mattermost\n"
+        "        description: Trino is down\n"
+        "        provider-override:\n"
+        "          webhook-url: '[secret:mm-webhook-trino]'\n"
+    )
+    resolved_endpoints = (
+        "endpoints:\n"
+        "  - name: Trino\n"
+        "    url: https://trino.example.com\n"
+        "    alerts:\n"
+        "      - type: mattermost\n"
+        "        description: Trino is down\n"
+        "        provider-override:\n"
+        "          webhook-url: 'https://chat.example.com/hooks/trino'\n"
+    )
+    config = {
+        "ui-default-sort-by": "name",
+        "ui-default-filter-by": "none",
+        "endpoints": raw_endpoints,
+    }
+
+    status = GatusValidator.validate(config, resolved_endpoints=resolved_endpoints)
+    assert status == ActiveStatus()
+
+
+def test_validator_blocks_on_invalid_resolved_endpoints():
+    """Test that validation fails on invalid resolved endpoints."""
+    resolved_endpoints = (
+        "endpoints:\n"
+        "  - name: Trino\n"
+        # Missing required 'url' field to trigger Pydantic validation error
+        "    alerts:\n"
+        "      - type: mattermost\n"
+        "        description: Trino is down\n"
+    )
+    config = {
+        "ui-default-sort-by": "name",
+        "ui-default-filter-by": "none",
+        "endpoints": "some raw endpoints with [secret:mm-webhook-trino]",
+    }
+
+    status = GatusValidator.validate(config, resolved_endpoints=resolved_endpoints)
+    assert isinstance(status, BlockedStatus)
+    assert status.message == FAILED_TO_VALIDATE
+
+
+def test_backwards_compat_mattermost_webhook_url_key():
+    """Test that mattermost-webhook-url key still works as the default webhook URL."""
+    secret_content_old = {"mattermost-webhook-url": "https://old.example.com/hooks/abc"}
+    secret_content_new = {"mm-webhook-default": "https://new.example.com/hooks/abc"}
+    secret_content_both = {
+        "mm-webhook-default": "https://new.example.com/hooks/abc",
+        "mattermost-webhook-url": "https://old.example.com/hooks/abc",
+    }
+
+    def get_webhook_url_with_fallback(secret_content):
+        return secret_content.get("mm-webhook-default") or secret_content.get("mattermost-webhook-url")
+
+    assert get_webhook_url_with_fallback(secret_content_old) == "https://old.example.com/hooks/abc"
+    assert get_webhook_url_with_fallback(secret_content_new) == "https://new.example.com/hooks/abc"
+    assert get_webhook_url_with_fallback(secret_content_both) == "https://new.example.com/hooks/abc"
+
