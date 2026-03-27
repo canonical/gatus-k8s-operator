@@ -122,7 +122,7 @@ class GatusCharm(paas_charm.go.Charm):
         """Replace [mm-webhook:channel-name] placeholders with values from the secret content dict.
 
         Each placeholder [mm-webhook:channel-name] is resolved to the value of the
-        mm-webhook-channel-name key in the Juju secret content dict.
+        channel-name key in the Juju secret content dict.
 
         Args:
             raw_yaml: The raw YAML string that may contain [mm-webhook:channel-name] placeholders.
@@ -136,10 +136,9 @@ class GatusCharm(paas_charm.go.Charm):
 
         def replace_placeholder(match) -> str:
             channel = match.group(1)
-            key = f"mm-webhook-{channel}"
-            if key not in secret_content:
-                raise KeyError(key)
-            return secret_content[key]
+            if channel not in secret_content:
+                raise KeyError(channel)
+            return secret_content[channel]
 
         try:
             return MM_WEBHOOK_PLACEHOLDER_RE.sub(replace_placeholder, raw_yaml)
@@ -166,7 +165,7 @@ class GatusCharm(paas_charm.go.Charm):
 
         secret_content = self._get_juju_secret_content(MATTERMOST_ALERTING_CONFIG)
         if secret_content:
-            webhook_url = secret_content.get("mm-webhook-default") or secret_content.get("mattermost-webhook-url")
+            webhook_url = secret_content.get("default")
             if webhook_url:
                 env["MATTERMOST_WEBHOOK_URL"] = webhook_url
 
