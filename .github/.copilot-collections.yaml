@@ -1,0 +1,12 @@
+# Copyright 2025 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+copilot:
+  # The version of the toolkit to use
+  version: "v0.8.0"
+
+  # The collections you want to install
+  collections:
+    - copilot-toolkit
+    - charm-python
+    - pfe-charms
