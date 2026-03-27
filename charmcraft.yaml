@@ -55,13 +55,12 @@ config:
         Juju Secret ID including secrets used for Mattermost alerting.
 
         The secret may contain the following keys:
-          - mm-webhook-default: The default webhook URL for Mattermost alerts.
+          - default: The default webhook URL for Mattermost alerts.
             This key is preferred. The legacy key mattermost-webhook-url is still
             accepted for backwards compatibility.
-          - mattermost-webhook-url: Legacy default webhook URL (still supported).
-          - mm-webhook-<name>: Additional per-channel webhook URLs, e.g.
-            mm-webhook-trino or mm-webhook-channel-1. These can be referenced in
-            the endpoints config using the [mm-webhook:<name>] placeholder
+          - <channel-name>: Additional per-channel webhook URLs, e.g.
+            team-name or alerts-channel. These can be referenced in
+            the endpoints config using the [mm-webhook:<channel-name>] placeholder
             syntax to specify per-endpoint webhook overrides.
       type: string
       default: ""
