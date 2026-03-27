@@ -9,7 +9,7 @@ import yaml
 from ops.model import ActiveStatus, BlockedStatus, ConfigData, StatusBase
 from pydantic import ValidationError
 
-from constants import FAILED_TO_VALIDATE, INVALID_FILTER_BY_MESSAGE, INVALID_SORT_BY_MESSAGE, SECRET_PLACEHOLDER_RE
+from constants import FAILED_TO_VALIDATE, INVALID_FILTER_BY_MESSAGE, INVALID_SORT_BY_MESSAGE, MM_WEBHOOK_PLACEHOLDER_RE
 from gatus import GatusConfig
 
 logger = logging.getLogger(__name__)
@@ -56,7 +56,7 @@ class GatusValidator:
 
         if resolved_yaml is not None:
             yaml_to_validate = resolved_yaml
-        elif SECRET_PLACEHOLDER_RE.search(config_item):
+        elif MM_WEBHOOK_PLACEHOLDER_RE.search(config_item):
             logger.debug(
                 "Skipping validation for %s: contains unresolved secret placeholders",
                 config_key,

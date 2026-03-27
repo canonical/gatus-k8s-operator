@@ -12,4 +12,6 @@ INVALID_SORT_BY_MESSAGE = "Invalid default sort order. Valid values are: name, g
 INVALID_FILTER_BY_MESSAGE = "Invalid default filter. Valid values are: none, failing, unstable"
 FAILED_TO_VALIDATE = "Failed to validate Gatus configuration"
 
-SECRET_PLACEHOLDER_RE = re.compile(r"\[secret:([^\]]+)\]")
+MM_WEBHOOK_PLACEHOLDER_RE = re.compile(r"\[mm-webhook:([^\]]+)\]")
+
+MATTERMOST_ALERTING_CONFIG = "mattermost-alerting"

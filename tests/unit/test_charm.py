@@ -151,7 +151,7 @@ def test_provider_override_parsed_from_yaml():
     assert len(endpoint.alerts) > 0
     alert = endpoint.alerts[0]
     assert alert.provider_override is not None
-    assert alert.provider_override.webhook_url == "[secret:mm-webhook-channel-1]"
+    assert alert.provider_override.webhook_url == "[mm-webhook:channel-1]"
 
 
 def test_endpoint_alert_without_provider_override():
@@ -173,27 +173,27 @@ def test_provider_override_model():
 
 def test_resolve_secret_placeholders_substitutes_known_keys():
     """Test that _resolve_secret_placeholders correctly substitutes known keys."""
-    from constants import SECRET_PLACEHOLDER_RE
+    from constants import MM_WEBHOOK_PLACEHOLDER_RE
 
-    raw_yaml = "webhook-url: '[secret:mm-webhook-trino]'"
+    raw_yaml = "webhook-url: '[mm-webhook:trino]'"
     secret_content = {"mm-webhook-trino": "https://chat.example.com/hooks/abc123"}
 
     def replacer(match):
-        key = match.group(1)
+        key = f"mm-webhook-{match.group(1)}"
         return secret_content[key]
 
-    resolved = SECRET_PLACEHOLDER_RE.sub(replacer, raw_yaml)
+    resolved = MM_WEBHOOK_PLACEHOLDER_RE.sub(replacer, raw_yaml)
     assert resolved == "webhook-url: 'https://chat.example.com/hooks/abc123'"
 
 
 def test_resolve_secret_placeholders_multiple_keys():
     """Test that _resolve_secret_placeholders substitutes multiple placeholders."""
-    from constants import SECRET_PLACEHOLDER_RE
+    from constants import MM_WEBHOOK_PLACEHOLDER_RE
 
     raw_yaml = (
-        "webhook-url: '[secret:mm-webhook-default]'\n"
+        "webhook-url: '[mm-webhook:default]'\n"
         "provider-override:\n"
-        "  webhook-url: '[secret:mm-webhook-trino]'"
+        "  webhook-url: '[mm-webhook:trino]'"
     )
     secret_content = {
         "mm-webhook-default": "https://chat.example.com/hooks/default",
@@ -201,17 +201,17 @@ def test_resolve_secret_placeholders_multiple_keys():
     }
 
     def replacer(match):
-        key = match.group(1)
+        key = f"mm-webhook-{match.group(1)}"
         return secret_content[key]
 
-    resolved = SECRET_PLACEHOLDER_RE.sub(replacer, raw_yaml)
+    resolved = MM_WEBHOOK_PLACEHOLDER_RE.sub(replacer, raw_yaml)
     assert "https://chat.example.com/hooks/default" in resolved
     assert "https://chat.example.com/hooks/trino" in resolved
-    assert "[secret:" not in resolved
+    assert "[mm-webhook:" not in resolved
 
 
 def test_validator_skips_endpoints_with_placeholders():
-    """Test that validation is skipped for endpoints YAML containing [secret:...] placeholders."""
+    """Test that validation is skipped for endpoints YAML containing [mm-webhook:...] placeholders."""
     config = {
         "ui-default-sort-by": "name",
         "ui-default-filter-by": "none",
@@ -223,7 +223,7 @@ def test_validator_skips_endpoints_with_placeholders():
             "      - type: mattermost\n"
             "        description: Trino is down\n"
             "        provider-override:\n"
-            "          webhook-url: '[secret:mm-webhook-trino]'\n"
+            "          webhook-url: '[mm-webhook:trino]'\n"
         ),
     }
 
@@ -241,7 +241,7 @@ def test_validator_validates_resolved_endpoints():
         "      - type: mattermost\n"
         "        description: Trino is down\n"
         "        provider-override:\n"
-        "          webhook-url: '[secret:mm-webhook-trino]'\n"
+        "          webhook-url: '[mm-webhook:trino]'\n"
     )
     resolved_endpoints = (
         "endpoints:\n"
@@ -276,7 +276,7 @@ def test_validator_blocks_on_invalid_resolved_endpoints():
     config = {
         "ui-default-sort-by": "name",
         "ui-default-filter-by": "none",
-        "endpoints": "some raw endpoints with [secret:mm-webhook-trino]",
+        "endpoints": "some raw endpoints with [mm-webhook:trino]",
     }
 
     status = GatusValidator.validate(config, resolved_endpoints=resolved_endpoints)

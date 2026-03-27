@@ -13,4 +13,4 @@ endpoints:
         description: "Trino is down"
         send-on-resolved: true
         provider-override:
-          webhook-url: "[secret:mm-webhook-channel-1]"
+          webhook-url: "[mm-webhook:channel-1]"

@@ -61,7 +61,7 @@ config:
           - mattermost-webhook-url: Legacy default webhook URL (still supported).
           - mm-webhook-<name>: Additional per-channel webhook URLs, e.g.
             mm-webhook-trino or mm-webhook-channel-1. These can be referenced in
-            the endpoints config using the [secret:mm-webhook-<name>] placeholder
+            the endpoints config using the [mm-webhook:<name>] placeholder
             syntax to specify per-endpoint webhook overrides.
       type: string
       default: ""

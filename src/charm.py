@@ -13,7 +13,7 @@ from ops.framework import EventBase
 from ops.model import BlockedStatus, Container, ModelError, SecretNotFoundError
 from ops.pebble import LayerDict
 
-from constants import CONTAINER_NAME, SECRET_PLACEHOLDER_RE, SERVICE_NAME
+from constants import CONTAINER_NAME, MATTERMOST_ALERTING_CONFIG, MM_WEBHOOK_PLACEHOLDER_RE, SERVICE_NAME
 from validator import GatusValidator
 
 logger = logging.getLogger(__name__)
@@ -119,10 +119,13 @@ class GatusCharm(paas_charm.go.Charm):
             return None
 
     def _resolve_secret_placeholders(self, raw_yaml: str, secret_content: dict[str, str]) -> str | None:
-        """Replace [secret:key-name] placeholders with values from the secret content dict.
+        """Replace [mm-webhook:channel-name] placeholders with values from the secret content dict.
+
+        Each placeholder [mm-webhook:channel-name] is resolved to the value of the
+        mm-webhook-channel-name key in the Juju secret content dict.
 
         Args:
-            raw_yaml: The raw YAML string that may contain [secret:key-name] placeholders.
+            raw_yaml: The raw YAML string that may contain [mm-webhook:channel-name] placeholders.
             secret_content: The full content dict of the Juju secret.
 
         Returns:
@@ -132,15 +135,16 @@ class GatusCharm(paas_charm.go.Charm):
         """
 
         def replace_placeholder(match) -> str:
-            key = match.group(1)
+            channel = match.group(1)
+            key = f"mm-webhook-{channel}"
             if key not in secret_content:
                 raise KeyError(key)
             return secret_content[key]
 
         try:
-            return SECRET_PLACEHOLDER_RE.sub(replace_placeholder, raw_yaml)
+            return MM_WEBHOOK_PLACEHOLDER_RE.sub(replace_placeholder, raw_yaml)
         except KeyError as e:
-            key = str(e).strip("'")
+            key = e.args[0]
             logger.error("Secret key '%s' not found in mattermost-alerting secret", key)
             self.unit.status = BlockedStatus(f"Secret key '{key}' not found in mattermost-alerting secret")
             return None
@@ -160,7 +164,7 @@ class GatusCharm(paas_charm.go.Charm):
         """
         env = {}
 
-        secret_content = self._get_juju_secret_content("mattermost-alerting")
+        secret_content = self._get_juju_secret_content(MATTERMOST_ALERTING_CONFIG)
         if secret_content:
             webhook_url = secret_content.get("mm-webhook-default") or secret_content.get(
                 "mattermost-webhook-url"
@@ -169,12 +173,12 @@ class GatusCharm(paas_charm.go.Charm):
                 env["MATTERMOST_WEBHOOK_URL"] = webhook_url
 
             endpoints_raw = str(self.model.config.get("endpoints", ""))
-            if endpoints_raw and SECRET_PLACEHOLDER_RE.search(endpoints_raw):
+            if endpoints_raw and MM_WEBHOOK_PLACEHOLDER_RE.search(endpoints_raw):
                 resolved = self._resolve_secret_placeholders(endpoints_raw, secret_content)
                 if resolved is None:
                     return False
                 env["APP_ENDPOINTS"] = resolved
-        elif SECRET_PLACEHOLDER_RE.search(str(self.model.config.get("endpoints", ""))):
+        elif MM_WEBHOOK_PLACEHOLDER_RE.search(str(self.model.config.get("endpoints", ""))):
             logger.error(
                 "Endpoints config contains secret placeholders but mattermost-alerting is not configured"
             )
