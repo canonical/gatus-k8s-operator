@@ -197,7 +197,7 @@ def test_resolve_secret_placeholders_multiple_keys():
     }
 
     def replacer(match):
-        key = {match.group(1)
+        key = match.group(1)
         return secret_content[key]
 
     resolved = MM_WEBHOOK_PLACEHOLDER_RE.sub(replacer, raw_yaml)
