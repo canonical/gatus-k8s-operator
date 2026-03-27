@@ -174,6 +174,11 @@ class GatusCharm(paas_charm.go.Charm):
                 resolved = self._resolve_secret_placeholders(endpoints_raw, secret_content)
                 if resolved is None:
                     return False
+                status = GatusValidator.validate(self.model.config, resolved_endpoints=resolved)
+                if status.name != "active":
+                    logger.warning(f"Resolved endpoints invalid, preventing update: {status.message}")
+                    self.unit.status = status
+                    return False
                 env["APP_ENDPOINTS"] = resolved
         elif MM_WEBHOOK_PLACEHOLDER_RE.search(str(self.model.config.get("endpoints", ""))):
             logger.error("Endpoints config contains secret placeholders but mattermost-alerting is not configured")
