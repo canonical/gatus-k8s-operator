@@ -130,6 +130,19 @@ class GatusCharm(paas_charm.go.Charm):
         if mattermost_webhook_url:
             env["MATTERMOST_WEBHOOK_URL"] = mattermost_webhook_url
 
+        oidc_client_id = self._get_juju_secret("oidc-credentials", "oidc-client-id")
+        oidc_client_secret = self._get_juju_secret("oidc-credentials", "oidc-client-secret")
+        oidc_issuer_url = str(self.model.config.get("oidc-issuer-url", ""))
+        oidc_redirect_url = str(self.model.config.get("oidc-redirect-url", ""))
+
+        if oidc_client_id and oidc_client_secret and oidc_issuer_url:
+            env["OIDC_ISSUER_URL"] = oidc_issuer_url
+            env["OIDC_REDIRECT_URL"] = oidc_redirect_url
+            env["OIDC_CLIENT_ID"] = oidc_client_id
+            env["OIDC_CLIENT_SECRET"] = oidc_client_secret
+            env["OIDC_SCOPES"] = str(self.model.config.get("oidc-scopes", "openid"))
+            env["OIDC_ALLOWED_SUBJECTS"] = str(self.model.config.get("oidc-allowed-subjects", ""))
+
         log_level = str(self.model.config["log-level"])
         if log_level.lower() in ["info", "debug", "warn", "error", "fatal"]:
             env["GATUS_LOG_LEVEL"] = log_level.upper()

@@ -9,7 +9,13 @@ import yaml
 from ops.model import ActiveStatus, BlockedStatus, ConfigData, StatusBase
 from pydantic import ValidationError
 
-from constants import FAILED_TO_VALIDATE, INVALID_FILTER_BY_MESSAGE, INVALID_SORT_BY_MESSAGE
+from constants import (
+    FAILED_TO_VALIDATE,
+    INVALID_FILTER_BY_MESSAGE,
+    INVALID_SORT_BY_MESSAGE,
+    OIDC_INCOMPLETE_CONFIG_MESSAGE,
+    OIDC_INVALID_REDIRECT_URL_MESSAGE,
+)
 from gatus import GatusConfig
 
 logger = logging.getLogger(__name__)
@@ -28,6 +34,20 @@ class GatusValidator:
 
         if config["ui-default-filter-by"] not in ["none", "failing", "unstable"]:
             return BlockedStatus(INVALID_FILTER_BY_MESSAGE)
+
+        oidc_issuer_url = str(config.get("oidc-issuer-url", "")).strip()
+        oidc_redirect_url = str(config.get("oidc-redirect-url", "")).strip()
+        oidc_credentials = str(config.get("oidc-credentials", "")).strip()
+        oidc_scopes = str(config.get("oidc-scopes", "")).strip()
+        oidc_allowed_subjects = str(config.get("oidc-allowed-subjects", "")).strip()
+
+        if any([oidc_issuer_url, oidc_redirect_url, oidc_credentials, oidc_scopes, oidc_allowed_subjects]) and (
+            not oidc_issuer_url or not oidc_redirect_url or not oidc_credentials
+        ):
+            return BlockedStatus(OIDC_INCOMPLETE_CONFIG_MESSAGE)
+
+        if oidc_redirect_url and not oidc_redirect_url.endswith("/authorization-code/callback"):
+            return BlockedStatus(OIDC_INVALID_REDIRECT_URL_MESSAGE)
 
         config_keys = ["announcements", "endpoints"]
         for config_key in config_keys:

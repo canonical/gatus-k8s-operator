@@ -9,6 +9,7 @@ CONFIG_DIR="/config"
 UI_FILE="${CONFIG_DIR}/ui.yaml"
 STORAGE_FILE="${CONFIG_DIR}/storage.yaml"
 ALERTS_FILE="${CONFIG_DIR}/alerting.yaml"
+SECURITY_FILE="${CONFIG_DIR}/security.yaml"
 ANNOUNCEMENTS_FILE="${CONFIG_DIR}/announcements.yaml"
 ENDPOINTS_FILE="${CONFIG_DIR}/endpoints.yaml"
 
@@ -80,6 +81,39 @@ endpoints:
     conditions:
       - "[STATUS] == 200"
 EOF
+fi
+
+# If OIDC credentials are provided, configure OIDC authentication
+if [[ -n "${OIDC_ISSUER_URL:-}" && -n "${OIDC_CLIENT_ID:-}" && -n "${OIDC_CLIENT_SECRET:-}" ]]; then
+	echo "Configuring OIDC authentication"
+
+	cat > "$SECURITY_FILE" <<EOF
+security:
+  oidc:
+    issuer-url: ${OIDC_ISSUER_URL}
+    redirect-url: ${OIDC_REDIRECT_URL}
+    client-id: ${OIDC_CLIENT_ID}
+    client-secret: ${OIDC_CLIENT_SECRET}
+    scopes:
+EOF
+
+	# Append scopes as a YAML list
+	IFS=',' read -ra SCOPES <<< "${OIDC_SCOPES:-openid}"
+	for scope in "${SCOPES[@]}"; do
+		echo "      - $(echo "$scope" | xargs)" >> "$SECURITY_FILE"
+	done
+
+	# Optionally restrict to specific subjects
+	if [[ -n "${OIDC_ALLOWED_SUBJECTS:-}" ]]; then
+		echo "    allowed-subjects:" >> "$SECURITY_FILE"
+		IFS=',' read -ra SUBJECTS <<< "$OIDC_ALLOWED_SUBJECTS"
+		for subject in "${SUBJECTS[@]}"; do
+			echo "      - $(echo "$subject" | xargs)" >> "$SECURITY_FILE"
+		done
+	fi
+else
+	echo "OIDC not configured"
+	rm -f "$SECURITY_FILE"
 fi
 
 export GATUS_CONFIG_PATH=$CONFIG_DIR

@@ -4,14 +4,23 @@
 # To learn more about testing, see https://documentation.ubuntu.com/ops/latest/explanation/testing/
 
 import logging
+import sys
+import types
 from datetime import datetime, timezone
+from importlib import import_module
+from unittest.mock import patch
 
 import pytest
 import yaml
 from ops.model import ActiveStatus, BlockedStatus
 from pydantic import ValidationError
 
-from constants import INVALID_FILTER_BY_MESSAGE, INVALID_SORT_BY_MESSAGE
+from constants import (
+    INVALID_FILTER_BY_MESSAGE,
+    INVALID_SORT_BY_MESSAGE,
+    OIDC_INCOMPLETE_CONFIG_MESSAGE,
+    OIDC_INVALID_REDIRECT_URL_MESSAGE,
+)
 from gatus import GatusConfig
 from validator import GatusValidator
 
@@ -127,6 +136,47 @@ def test_invalid_endpoints():
             BlockedStatus(INVALID_FILTER_BY_MESSAGE),
             id="Invalid default-filter-by",
         ),
+        pytest.param(
+            {
+                "ui-default-sort-by": "name",
+                "ui-default-filter-by": "none",
+                "oidc-issuer-url": "https://issuer.example.com",
+                "oidc-redirect-url": "https://gatus.example.com/authorization-code/callback",
+                "oidc-credentials": "secret:oidc-credentials",
+            },
+            ActiveStatus(),
+            id="Valid OIDC config",
+        ),
+        pytest.param(
+            {
+                "ui-default-sort-by": "name",
+                "ui-default-filter-by": "none",
+                "oidc-issuer-url": "https://issuer.example.com",
+                "oidc-redirect-url": "https://gatus.example.com/authorization-code/callback",
+            },
+            BlockedStatus(OIDC_INCOMPLETE_CONFIG_MESSAGE),
+            id="Incomplete OIDC config",
+        ),
+        pytest.param(
+            {
+                "ui-default-sort-by": "name",
+                "ui-default-filter-by": "none",
+                "oidc-scopes": "openid,email",
+            },
+            BlockedStatus(OIDC_INCOMPLETE_CONFIG_MESSAGE),
+            id="OIDC optional field set without required fields",
+        ),
+        pytest.param(
+            {
+                "ui-default-sort-by": "name",
+                "ui-default-filter-by": "none",
+                "oidc-issuer-url": "https://issuer.example.com",
+                "oidc-redirect-url": "https://gatus.example.com/callback",
+                "oidc-credentials": "secret:oidc-credentials",
+            },
+            BlockedStatus(OIDC_INVALID_REDIRECT_URL_MESSAGE),
+            id="Invalid OIDC redirect URL",
+        ),
     ],
 )
 def test_ui_config_validation(config, expected_status):
@@ -134,3 +184,62 @@ def test_ui_config_validation(config, expected_status):
     status = GatusValidator.validate(config)
 
     assert status == expected_status
+
+
+def test_update_env_includes_oidc_vars():
+    """Test that OIDC values are propagated to the workload environment."""
+    paas_charm_module = types.ModuleType("paas_charm")
+    paas_charm_go_module = types.ModuleType("paas_charm.go")
+    setattr(paas_charm_go_module, "Charm", type("DummyCharm", (), {}))
+    setattr(paas_charm_module, "go", paas_charm_go_module)
+
+    class FakeContainer:
+        def __init__(self):
+            self.layer = {}
+
+        def add_layer(self, _: str, layer, combine: bool = False):
+            self.layer = layer
+
+        def replan(self):
+            return
+
+    class FakeCharm:
+        def __init__(self):
+            self.model = types.SimpleNamespace(
+                config={
+                    "oidc-issuer-url": "https://accounts.google.com",
+                    "oidc-redirect-url": "https://gatus.example.com/authorization-code/callback",
+                    "oidc-scopes": "openid,email,profile",
+                    "oidc-allowed-subjects": "alice@example.com,bob@example.com",
+                    "log-level": "info",
+                }
+            )
+
+        def _get_juju_secret(self, config_name: str, secret_key: str):
+            return {
+                ("oidc-credentials", "oidc-client-id"): "oidc-client-id-value",
+                ("oidc-credentials", "oidc-client-secret"): "oidc-client-secret-value",
+            }.get((config_name, secret_key))
+
+    with patch.dict(
+        sys.modules,
+        {
+            "paas_charm": paas_charm_module,
+            "paas_charm.go": paas_charm_go_module,
+        },
+    ):
+        if "charm" in sys.modules:
+            del sys.modules["charm"]
+        charm_module = import_module("charm")
+
+    fake_charm = FakeCharm()
+    fake_container = FakeContainer()
+    charm_module.GatusCharm._update_env(fake_charm, fake_container)
+
+    env = fake_container.layer["services"]["go"]["environment"]
+    assert env["OIDC_ISSUER_URL"] == "https://accounts.google.com"
+    assert env["OIDC_REDIRECT_URL"] == "https://gatus.example.com/authorization-code/callback"
+    assert env["OIDC_CLIENT_ID"] == "oidc-client-id-value"
+    assert env["OIDC_CLIENT_SECRET"] == "oidc-client-secret-value"
+    assert env["OIDC_SCOPES"] == "openid,email,profile"
+    assert env["OIDC_ALLOWED_SUBJECTS"] == "alice@example.com,bob@example.com"
