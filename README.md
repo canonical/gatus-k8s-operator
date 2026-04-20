@@ -40,7 +40,7 @@ juju config gatus-k8s endpoints=@./tests/data/endpoints.yaml
 Currently, the charm supports Mattermost alerting.
 
 Since alerts use webhook URLs that can be sensitive (anyone with the URL can send a message),
-they are configured using Juju secrets. To do so, create a secret named `mattermost-alerting` containing a `default` key with the webhook URL.
+they are configured using Juju secrets. To do so, create a secret containing a `default` key with the webhook URL.
 Add that secret ID to the `mattermost-alerting` charm config.
 The charm unpacks the secret and passes it as an environment variable to the rock script.
 

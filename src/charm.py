@@ -144,8 +144,8 @@ class GatusCharm(paas_charm.go.Charm):
             return MM_WEBHOOK_PLACEHOLDER_RE.sub(replace_placeholder, raw_yaml)
         except KeyError as e:
             key = e.args[0]
-            logger.error("Secret key '%s' not found in mattermost-alerting secret", key)
-            self.unit.status = BlockedStatus(f"Secret key '{key}' not found in mattermost-alerting secret")
+            logger.error("Secret key '%s' not found in %s secret", key, MATTERMOST_ALERTING_CONFIG)
+            self.unit.status = BlockedStatus(f"Secret key '{key}' not found in {MATTERMOST_ALERTING_CONFIG} secret")
             return None
 
     def _update_env(self, container: Container) -> bool:
@@ -181,9 +181,11 @@ class GatusCharm(paas_charm.go.Charm):
                     return False
                 env["APP_ENDPOINTS"] = resolved
         elif MM_WEBHOOK_PLACEHOLDER_RE.search(str(self.model.config.get("endpoints", ""))):
-            logger.error("Endpoints config contains secret placeholders but mattermost-alerting is not configured")
+            logger.error(
+                "Endpoints config contains secret placeholders but %s is not configured", MATTERMOST_ALERTING_CONFIG
+            )
             self.unit.status = BlockedStatus(
-                "Endpoints config contains secret placeholders but mattermost-alerting is not configured"
+                "Endpoints config contains secret placeholders but ${MATTERMOST_ALERTING_CONFIG} is not configured"
             )
             return False
 

@@ -54,7 +54,7 @@ class GatusValidator:
 
         if resolved_yaml is not None:
             yaml_to_validate = resolved_yaml
-        elif MM_WEBHOOK_PLACEHOLDER_RE.search(config_item):
+        elif config_key == "endpoints" and MM_WEBHOOK_PLACEHOLDER_RE.search(config_item):
             logger.debug(
                 "Skipping validation for %s: contains unresolved secret placeholders",
                 config_key,

@@ -5,10 +5,11 @@
 
 import logging
 from datetime import datetime, timezone
+from typing import cast
 
 import pytest
 import yaml
-from ops.model import ActiveStatus, BlockedStatus
+from ops.model import ActiveStatus, BlockedStatus, ConfigData
 from pydantic import ValidationError
 
 from constants import FAILED_TO_VALIDATE, INVALID_FILTER_BY_MESSAGE, INVALID_SORT_BY_MESSAGE
@@ -208,20 +209,43 @@ def test_resolve_secret_placeholders_multiple_keys():
 
 def test_validator_skips_endpoints_with_placeholders():
     """Test that validation is skipped for endpoints YAML containing [mm-webhook:...] placeholders."""
-    config = {
-        "ui-default-sort-by": "name",
-        "ui-default-filter-by": "none",
-        "endpoints": (
-            "endpoints:\n"
-            "  - name: Trino\n"
-            "    url: https://trino.example.com\n"
-            "    alerts:\n"
-            "      - type: mattermost\n"
-            "        description: Trino is down\n"
-            "        provider-override:\n"
-            "          webhook-url: '[mm-webhook:trino]'\n"
-        ),
-    }
+    config = cast(
+        ConfigData,
+        {
+            "ui-default-sort-by": "name",
+            "ui-default-filter-by": "none",
+            "endpoints": (
+                "endpoints:\n"
+                "  - name: Trino\n"
+                "    url: https://trino.example.com\n"
+                "    alerts:\n"
+                "      - type: mattermost\n"
+                "        description: Trino is down\n"
+                "        provider-override:\n"
+                "          webhook-url: '[mm-webhook:trino]'\n"
+            ),
+        },
+    )
+
+    status = GatusValidator.validate(config)
+    assert status == ActiveStatus()
+
+
+def test_validator_does_not_skip_announcements_with_placeholder_literal():
+    """Test that announcements validation is not skipped by placeholder-like message text."""
+    config = cast(
+        ConfigData,
+        {
+            "ui-default-sort-by": "name",
+            "ui-default-filter-by": "none",
+            "announcements": (
+                "announcements:\n"
+                "  - timestamp: 2026-01-08T06:00:00Z\n"
+                "    type: information\n"
+                "    message: '[mm-webhook:trino]'\n"
+            ),
+        },
+    )
 
     status = GatusValidator.validate(config)
     assert status == ActiveStatus()
@@ -249,11 +273,14 @@ def test_validator_validates_resolved_endpoints():
         "        provider-override:\n"
         "          webhook-url: 'https://chat.example.com/hooks/trino'\n"
     )
-    config = {
-        "ui-default-sort-by": "name",
-        "ui-default-filter-by": "none",
-        "endpoints": raw_endpoints,
-    }
+    config = cast(
+        ConfigData,
+        {
+            "ui-default-sort-by": "name",
+            "ui-default-filter-by": "none",
+            "endpoints": raw_endpoints,
+        },
+    )
 
     status = GatusValidator.validate(config, resolved_endpoints=resolved_endpoints)
     assert status == ActiveStatus()
@@ -269,11 +296,14 @@ def test_validator_blocks_on_invalid_resolved_endpoints():
         "      - type: mattermost\n"
         "        description: Trino is down\n"
     )
-    config = {
-        "ui-default-sort-by": "name",
-        "ui-default-filter-by": "none",
-        "endpoints": "some raw endpoints with [mm-webhook:trino]",
-    }
+    config = cast(
+        ConfigData,
+        {
+            "ui-default-sort-by": "name",
+            "ui-default-filter-by": "none",
+            "endpoints": "some raw endpoints with [mm-webhook:trino]",
+        },
+    )
 
     status = GatusValidator.validate(config, resolved_endpoints=resolved_endpoints)
     assert isinstance(status, BlockedStatus)
