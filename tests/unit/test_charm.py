@@ -5,14 +5,23 @@
 
 import logging
 from datetime import datetime, timezone
+from types import MethodType, SimpleNamespace
 from typing import cast
+from unittest.mock import Mock
 
 import pytest
 import yaml
 from ops.model import ActiveStatus, BlockedStatus, ConfigData
 from pydantic import ValidationError
 
-from constants import FAILED_TO_VALIDATE, INVALID_FILTER_BY_MESSAGE, INVALID_SORT_BY_MESSAGE
+from charm import GatusCharm
+from constants import (
+    FAILED_TO_VALIDATE,
+    INVALID_FILTER_BY_MESSAGE,
+    INVALID_SORT_BY_MESSAGE,
+    MATTERMOST_ALERTING_CONFIG,
+    SERVICE_NAME,
+)
 from gatus import EndpointAlert, GatusConfig, ProviderOverride
 from validator import GatusValidator
 
@@ -205,6 +214,92 @@ def test_resolve_secret_placeholders_multiple_keys():
     assert "https://chat.example.com/hooks/default" in resolved
     assert "https://chat.example.com/hooks/trino" in resolved
     assert "[mm-webhook:" not in resolved
+
+
+def test_update_env_resolves_endpoint_placeholders_into_container_env():
+    """Test that _update_env resolves placeholders and injects the resolved endpoints."""
+    endpoints = (
+        "endpoints:\n"
+        "  - name: Trino\n"
+        "    url: https://trino.example.com\n"
+        "    alerts:\n"
+        "      - type: mattermost\n"
+        "        description: Trino is down\n"
+        "        provider-override:\n"
+        "          webhook-url: '[mm-webhook:trino]'\n"
+    )
+    charm = SimpleNamespace(
+        model=SimpleNamespace(
+            config=cast(
+                ConfigData,
+                {
+                    "ui-default-sort-by": "name",
+                    "ui-default-filter-by": "none",
+                    "log-level": "info",
+                    "endpoints": endpoints,
+                },
+            )
+        ),
+        unit=SimpleNamespace(status=ActiveStatus()),
+    )
+    charm._get_juju_secret_content = Mock(
+        return_value={
+            "default": "https://chat.example.com/hooks/default",
+            "trino": "https://chat.example.com/hooks/trino",
+        }
+    )
+    charm._resolve_secret_placeholders = MethodType(GatusCharm._resolve_secret_placeholders, charm)
+
+    container = Mock()
+
+    result = GatusCharm._update_env(cast(GatusCharm, charm), container)
+
+    assert result is True
+    layer = container.add_layer.call_args.args[1]
+    env = layer["services"][SERVICE_NAME]["environment"]
+    assert env["MATTERMOST_WEBHOOK_URL"] == "https://chat.example.com/hooks/default"
+    assert env["APP_ENDPOINTS"] == endpoints.replace("[mm-webhook:trino]", "https://chat.example.com/hooks/trino")
+    assert env["GATUS_LOG_LEVEL"] == "INFO"
+    container.replan.assert_called_once_with()
+
+
+def test_update_env_blocks_when_placeholder_key_missing_from_secret():
+    """Test that _update_env blocks when an endpoint references a missing secret key."""
+    endpoints = (
+        "endpoints:\n"
+        "  - name: Trino\n"
+        "    url: https://trino.example.com\n"
+        "    alerts:\n"
+        "      - type: mattermost\n"
+        "        provider-override:\n"
+        "          webhook-url: '[mm-webhook:missing]'\n"
+    )
+    charm = SimpleNamespace(
+        model=SimpleNamespace(
+            config=cast(
+                ConfigData,
+                {
+                    "ui-default-sort-by": "name",
+                    "ui-default-filter-by": "none",
+                    "log-level": "info",
+                    "endpoints": endpoints,
+                },
+            )
+        ),
+        unit=SimpleNamespace(status=ActiveStatus()),
+    )
+    charm._get_juju_secret_content = Mock(return_value={"default": "https://chat.example.com/hooks/default"})
+    charm._resolve_secret_placeholders = MethodType(GatusCharm._resolve_secret_placeholders, charm)
+
+    container = Mock()
+
+    result = GatusCharm._update_env(cast(GatusCharm, charm), container)
+
+    assert result is False
+    assert isinstance(charm.unit.status, BlockedStatus)
+    assert charm.unit.status.message == (f"Secret key 'missing' not found in {MATTERMOST_ALERTING_CONFIG} secret")
+    container.add_layer.assert_not_called()
+    container.replan.assert_not_called()
 
 
 def test_validator_skips_endpoints_with_placeholders():
