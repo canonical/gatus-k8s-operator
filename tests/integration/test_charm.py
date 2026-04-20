@@ -91,7 +91,7 @@ def test_mattermost_alerting(juju: jubilant.Juju):
     secreturi = juju.add_secret(
         name="gatus-webhooks",
         content={
-            "mattermost-webhook-url": "http://localhost:8080/hooks/xxx",
+            "default": "http://localhost:8080/hooks/xxx",
         },
     )
     assert secreturi is not None
@@ -119,7 +119,7 @@ def test_mattermost_alerting(juju: jubilant.Juju):
     juju.update_secret(
         identifier=secreturi,
         content={
-            "mattermost-webhook-url": "http://localhost:8080/hooks/yyy",
+            "default": "http://localhost:8080/hooks/yyy",
         },
     )
     juju.wait(jubilant.all_active, timeout=300, delay=10)
