@@ -83,36 +83,42 @@ endpoints:
 EOF
 fi
 
-# If OIDC credentials are provided, configure OIDC authentication
-if [[ -n "${OIDC_ISSUER_URL:-}" && -n "${OIDC_CLIENT_ID:-}" && -n "${OIDC_CLIENT_SECRET:-}" ]]; then
-	echo "Configuring OIDC authentication"
+# If the oauth relation is established, configure OIDC authentication
+if [[ -n "${APP_OAUTH_CLIENT_ID:-}" && -n "${APP_OAUTH_CLIENT_SECRET:-}" && -n "${APP_OAUTH_API_BASE_URL:-}" && -n "${APP_BASE_URL:-}" ]]; then
+	echo "Configuring OIDC authentication via OAuth relation"
+
+	REDIRECT_PATH="${APP_OAUTH_REDIRECT_PATH:-/authorization-code/callback}"
+	REDIRECT_URI="${APP_BASE_URL%/}/${REDIRECT_PATH#/}"
 
 	cat > "$SECURITY_FILE" <<EOF
 security:
   oidc:
-    issuer-url: ${OIDC_ISSUER_URL}
-    redirect-url: ${OIDC_REDIRECT_URL}
-    client-id: ${OIDC_CLIENT_ID}
-    client-secret: ${OIDC_CLIENT_SECRET}
+    issuer-url: ${APP_OAUTH_API_BASE_URL}
+    redirect-url: ${REDIRECT_URI}
+    client-id: ${APP_OAUTH_CLIENT_ID}
+    client-secret: ${APP_OAUTH_CLIENT_SECRET}
     scopes:
 EOF
 
-	# Append scopes as a YAML list
-	IFS=',' read -ra SCOPES <<< "${OIDC_SCOPES:-openid}"
+	# Append scopes as a YAML list (space-separated per oauth relation convention)
+	read -ra SCOPES <<< "${APP_OAUTH_SCOPES:-openid}"
+	if [[ ${#SCOPES[@]} -eq 0 ]]; then
+		SCOPES=("openid")
+	fi
 	for scope in "${SCOPES[@]}"; do
-		echo "      - $(echo "$scope" | xargs)" >> "$SECURITY_FILE"
+		echo "      - ${scope}" >> "$SECURITY_FILE"
 	done
 
 	# Optionally restrict to specific subjects
-	if [[ -n "${OIDC_ALLOWED_SUBJECTS:-}" ]]; then
+	if [[ -n "${APP_OIDC_ALLOWED_SUBJECTS:-}" ]]; then
 		echo "    allowed-subjects:" >> "$SECURITY_FILE"
-		IFS=',' read -ra SUBJECTS <<< "$OIDC_ALLOWED_SUBJECTS"
+		IFS=',' read -ra SUBJECTS <<< "$APP_OIDC_ALLOWED_SUBJECTS"
 		for subject in "${SUBJECTS[@]}"; do
-			echo "      - $(echo "$subject" | xargs)" >> "$SECURITY_FILE"
+			echo "      - ${subject}" >> "$SECURITY_FILE"
 		done
 	fi
 else
-	echo "OIDC not configured"
+	echo "OAuth not configured, skipping OIDC security"
 	rm -f "$SECURITY_FILE"
 fi
 

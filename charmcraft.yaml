@@ -63,36 +63,24 @@ config:
         Whether to use an insecure connection to Mattermost.
       type: boolean
       default: false
-    oidc-issuer-url:
+    oauth-redirect-path:
       description: |
-        The OIDC issuer URL of your identity provider (e.g. https://accounts.google.com).
-        When set together with oidc-credentials, users must authenticate via OAuth/OIDC
-        before accessing the Gatus dashboard.
+        The callback path that Gatus listens on for the OAuth/OIDC redirect.
+        This must match the path registered with your identity provider.
+        Gatus uses /authorization-code/callback by default.
       type: string
-      default: ""
-    oidc-redirect-url:
+      default: "/authorization-code/callback"
+    oauth-scopes:
       description: |
-        The redirect URL registered with your identity provider.
-        Must end with /authorization-code/callback (e.g. https://gatus.example.com/authorization-code/callback).
-      type: string
-      default: ""
-    oidc-scopes:
-      description: |
-        Comma-separated list of OIDC scopes to request. Defaults to "openid".
+        Space-separated list of OIDC scopes to request from the identity provider.
+        The openid scope is mandatory and must always be included.
       type: string
       default: "openid"
     oidc-allowed-subjects:
       description: |
-        Optional comma-separated list of allowed subject identifiers (e.g. user emails).
-        If empty, all authenticated users are allowed.
-      type: string
-      default: ""
-    oidc-credentials:
-      description: |
-        Juju Secret ID containing the OIDC client credentials.
-        The secret must contain:
-          - oidc-client-id: The client ID registered with your IdP.
-          - oidc-client-secret: The client secret registered with your IdP.
+        Optional comma-separated list of subject identifiers (e.g. email addresses)
+        that are allowed to access the Gatus dashboard after authenticating via the
+        oauth relation. If empty, all authenticated users are allowed.
       type: string
       default: ""
     ui-header:
@@ -139,5 +127,9 @@ config:
 requires:
   postgresql:
     interface: postgresql_client
+    optional: true
+    limit: 1
+  oauth:
+    interface: oauth
     optional: true
     limit: 1
