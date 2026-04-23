@@ -163,33 +163,34 @@ class GatusCharm(paas_charm.go.Charm):
         """
         env = {}
 
-        endpoints_raw = str(self.model.config.get("endpoints", ""))
-        if not endpoints_raw:
+        endpoints = str(self.model.config.get("endpoints", ""))
+        if not endpoints:
             self.unit.status = BlockedStatus("Charm requires 'endpoints' config to be set")
             return False
 
         alerting_secret = self._get_juju_secret_content(MATTERMOST_ALERTING_CONFIG)
-        if not alerting_secret or WEBHOOK_URL_PLACEHOLDER_RE.search(endpoints_raw):
+        has_placeholders = bool(WEBHOOK_URL_PLACEHOLDER_RE.search(endpoints))
+        if has_placeholders and not alerting_secret:
             self.unit.status = BlockedStatus(
                 f"Endpoints config contains secret placeholders but '{MATTERMOST_ALERTING_CONFIG}' is not configured"
             )
             return False
 
-        default_webhook_url = alerting_secret.get("default")
-        if not default_webhook_url:
-            self.unit.status = BlockedStatus(f"Secret does not contain a 'default' key in {MATTERMOST_ALERTING_CONFIG}")
-            return False
-        # This is the default Mattermost webhook URL set in the `alerting` config
-        env["MATTERMOST_WEBHOOK_URL"] = default_webhook_url
-
-        # Resolve the endpoints config by replacing [webhook-url:channel-name] placeholders
-        if WEBHOOK_URL_PLACEHOLDER_RE.search(endpoints_raw):
-            endpoints = self._resolve_secret_placeholders(endpoints_raw, alerting_secret)
-            if endpoints is None:
+        if alerting_secret:
+            default_webhook_url = alerting_secret.get("default")
+            if not default_webhook_url:
+                self.unit.status = BlockedStatus(
+                    f"Secret does not contain a 'default' key in {MATTERMOST_ALERTING_CONFIG}"
+                )
                 return False
-        else:
-            # If no placeholders were found, use the raw endpoints config
-            endpoints = endpoints_raw
+            # This is the default Mattermost webhook URL set in the `alerting` config
+            env["MATTERMOST_WEBHOOK_URL"] = default_webhook_url
+
+            # Resolve the endpoints config by replacing [webhook-url:channel-name] placeholders
+            if WEBHOOK_URL_PLACEHOLDER_RE.search(endpoints):
+                endpoints = self._resolve_secret_placeholders(endpoints, alerting_secret)
+                if endpoints is None:
+                    return False
 
         status = GatusValidator.validate(self.model.config, endpoints=endpoints)
         if status.name != "active":

@@ -377,7 +377,7 @@ def test_validator_validates_resolved_endpoints():
         },
     )
 
-    status = GatusValidator.validate(config, resolved_endpoints=resolved_endpoints)
+    status = GatusValidator.validate(config, endpoints=resolved_endpoints)
     assert status == ActiveStatus()
 
 
@@ -400,6 +400,6 @@ def test_validator_blocks_on_invalid_resolved_endpoints():
         },
     )
 
-    status = GatusValidator.validate(config, resolved_endpoints=resolved_endpoints)
+    status = GatusValidator.validate(config, endpoints=resolved_endpoints)
     assert isinstance(status, BlockedStatus)
     assert status.message == FAILED_TO_VALIDATE

@@ -51,7 +51,7 @@ juju config gatus-k8s mattermost-alerting="yoursecretid"
 ```
 
 You can add additional webhook URLs to the `mattermost-alerting` juju secret, with keys named
-after the channels you want to send alerts to (e.g. `channel-name="https://your.mattermost.instance/hooks/yourwebhookid"`).
+after the channels you want to send alerts to (e.g. `channel-name: "https://your.mattermost.instance/hooks/yourwebhookid"`).
 Then, these keys need to be mentioned in the endpoint configuration, as follows:
 
 ```yaml
