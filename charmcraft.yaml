@@ -59,7 +59,7 @@ config:
             Required for any Mattermost alerting.
           - <channel-name>: Optional additional per-channel webhook URLs, e.g.
             team-name or alerts-channel. These can be referenced in
-            the endpoints config using the [mm-webhook:<channel-name>] placeholder
+            the endpoints config using the [webhook-url:<channel-name>] placeholder
             syntax to specify per-endpoint webhook overrides.
       type: string
       default: ""

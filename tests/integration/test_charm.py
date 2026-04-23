@@ -134,6 +134,46 @@ def test_mattermost_alerting(juju: jubilant.Juju):
     assert config.alerting.mattermost.webhook_url == "http://localhost:8080/hooks/yyy"
 
 
+def test_endpoints_provider_override_webhook(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[str, str]):
+    """Resolve provider-override webhook placeholders in endpoints config."""
+    status = juju.status()
+    if APP_NAME not in status.apps:
+        juju.deploy(charm.resolve(), app=APP_NAME, resources=charm_resources)
+        juju.wait(jubilant.all_active, timeout=300, delay=10)
+
+    secreturi = juju.add_secret(
+        name="gatus-webhooks-provider-override",
+        content={
+            "default": "http://localhost:8080/hooks/default",
+            "channel-1": "http://localhost:8080/hooks/channel-1",
+        },
+    )
+    assert secreturi is not None
+    assert secreturi.startswith("secret:")
+
+    juju.grant_secret(identifier=secreturi, app=APP_NAME)
+    secret_id = secreturi[len("secret:") :]
+    juju.config(APP_NAME, {"mattermost-alerting": secret_id})
+
+    with open("tests/data/endpoints-with-provider-override.yaml", "r") as f:
+        endpoints_string = f.read()
+    juju.config(APP_NAME, {"endpoints": endpoints_string})
+    juju.wait(jubilant.all_active, timeout=300, delay=10)
+
+    resolved_endpoints = juju.ssh(
+        target=APP_NAME + "/0",
+        container="app",
+        command="cat /config/endpoints.yaml",
+    )
+    logger.info("Resolved endpoints config: %s", resolved_endpoints)
+
+    assert "[webhook-url:channel-1]" not in resolved_endpoints
+
+    endpoints = yaml.safe_load(resolved_endpoints)
+    webhook_url = endpoints["endpoints"][0]["alerts"][0]["provider-override"]["webhook-url"]
+    assert webhook_url == "http://localhost:8080/hooks/channel-1"
+
+
 def test_invalid_endpoints_config(juju: jubilant.Juju):
     """Test that the endpoint config is correctly parsed."""
     with open("tests/data/endpoints-invalid.yaml", "r") as f:

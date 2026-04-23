@@ -63,10 +63,10 @@ endpoints:
       - type: mattermost
         # ... Existing configuration
         provider-override:
-          webhook-url: "[mm-webhook:channel-name]"
+          webhook-url: "[webhook-url:channel-name]"
 ```
 
-The charm will automatically replace the `[mm-webhook:channel-name]` placeholders with the actual webhook URLs.
+The charm will automatically replace the `[webhook-url:channel-name]` placeholders with the actual webhook URLs.
 
 ## Development and testing
 

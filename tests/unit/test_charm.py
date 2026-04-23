@@ -161,7 +161,7 @@ def test_provider_override_parsed_from_yaml():
     assert len(endpoint.alerts) > 0
     alert = endpoint.alerts[0]
     assert alert.provider_override is not None
-    assert alert.provider_override.webhook_url == "[mm-webhook:channel-1]"
+    assert alert.provider_override.webhook_url == "[webhook-url:channel-1]"
 
 
 def test_endpoint_alert_without_provider_override():
@@ -183,24 +183,24 @@ def test_provider_override_model():
 
 def test_resolve_secret_placeholders_substitutes_known_keys():
     """Test that _resolve_secret_placeholders correctly substitutes known keys."""
-    from constants import MM_WEBHOOK_PLACEHOLDER_RE
+    from constants import WEBHOOK_URL_PLACEHOLDER_RE
 
-    raw_yaml = "webhook-url: '[mm-webhook:trino]'"
+    raw_yaml = "webhook-url: '[webhook-url:trino]'"
     secret_content = {"trino": "https://chat.example.com/hooks/abc123"}
 
     def replacer(match):
         key = match.group(1)
         return secret_content[key]
 
-    resolved = MM_WEBHOOK_PLACEHOLDER_RE.sub(replacer, raw_yaml)
+    resolved = WEBHOOK_URL_PLACEHOLDER_RE.sub(replacer, raw_yaml)
     assert resolved == "webhook-url: 'https://chat.example.com/hooks/abc123'"
 
 
 def test_resolve_secret_placeholders_multiple_keys():
     """Test that _resolve_secret_placeholders substitutes multiple placeholders."""
-    from constants import MM_WEBHOOK_PLACEHOLDER_RE
+    from constants import WEBHOOK_URL_PLACEHOLDER_RE
 
-    raw_yaml = "webhook-url: '[mm-webhook:default]'\nprovider-override:\n  webhook-url: '[mm-webhook:trino]'"
+    raw_yaml = "webhook-url: '[webhook-url:default]'\nprovider-override:\n  webhook-url: '[webhook-url:trino]'"
     secret_content = {
         "default": "https://chat.example.com/hooks/default",
         "trino": "https://chat.example.com/hooks/trino",
@@ -210,10 +210,10 @@ def test_resolve_secret_placeholders_multiple_keys():
         key = match.group(1)
         return secret_content[key]
 
-    resolved = MM_WEBHOOK_PLACEHOLDER_RE.sub(replacer, raw_yaml)
+    resolved = WEBHOOK_URL_PLACEHOLDER_RE.sub(replacer, raw_yaml)
     assert "https://chat.example.com/hooks/default" in resolved
     assert "https://chat.example.com/hooks/trino" in resolved
-    assert "[mm-webhook:" not in resolved
+    assert "[webhook-url:" not in resolved
 
 
 def test_update_env_resolves_endpoint_placeholders_into_container_env():
@@ -226,7 +226,7 @@ def test_update_env_resolves_endpoint_placeholders_into_container_env():
         "      - type: mattermost\n"
         "        description: Trino is down\n"
         "        provider-override:\n"
-        "          webhook-url: '[mm-webhook:trino]'\n"
+        "          webhook-url: '[webhook-url:trino]'\n"
     )
     charm = SimpleNamespace(
         model=SimpleNamespace(
@@ -258,7 +258,7 @@ def test_update_env_resolves_endpoint_placeholders_into_container_env():
     layer = container.add_layer.call_args.args[1]
     env = layer["services"][SERVICE_NAME]["environment"]
     assert env["MATTERMOST_WEBHOOK_URL"] == "https://chat.example.com/hooks/default"
-    assert env["APP_ENDPOINTS"] == endpoints.replace("[mm-webhook:trino]", "https://chat.example.com/hooks/trino")
+    assert env["APP_ENDPOINTS"] == endpoints.replace("[webhook-url:trino]", "https://chat.example.com/hooks/trino")
     assert env["GATUS_LOG_LEVEL"] == "INFO"
     container.replan.assert_called_once_with()
 
@@ -272,7 +272,7 @@ def test_update_env_blocks_when_placeholder_key_missing_from_secret():
         "    alerts:\n"
         "      - type: mattermost\n"
         "        provider-override:\n"
-        "          webhook-url: '[mm-webhook:missing]'\n"
+        "          webhook-url: '[webhook-url:missing]'\n"
     )
     charm = SimpleNamespace(
         model=SimpleNamespace(
@@ -303,7 +303,7 @@ def test_update_env_blocks_when_placeholder_key_missing_from_secret():
 
 
 def test_validator_skips_endpoints_with_placeholders():
-    """Test that validation is skipped for endpoints YAML containing [mm-webhook:...] placeholders."""
+    """Test that validation is skipped for endpoints YAML containing [webhook-url:...] placeholders."""
     config = cast(
         ConfigData,
         {
@@ -317,7 +317,7 @@ def test_validator_skips_endpoints_with_placeholders():
                 "      - type: mattermost\n"
                 "        description: Trino is down\n"
                 "        provider-override:\n"
-                "          webhook-url: '[mm-webhook:trino]'\n"
+                "          webhook-url: '[webhook-url:trino]'\n"
             ),
         },
     )
@@ -337,7 +337,7 @@ def test_validator_does_not_skip_announcements_with_placeholder_literal():
                 "announcements:\n"
                 "  - timestamp: 2026-01-08T06:00:00Z\n"
                 "    type: information\n"
-                "    message: '[mm-webhook:trino]'\n"
+                "    message: '[webhook-url:trino]'\n"
             ),
         },
     )
@@ -356,7 +356,7 @@ def test_validator_validates_resolved_endpoints():
         "      - type: mattermost\n"
         "        description: Trino is down\n"
         "        provider-override:\n"
-        "          webhook-url: '[mm-webhook:trino]'\n"
+        "          webhook-url: '[webhook-url:trino]'\n"
     )
     resolved_endpoints = (
         "endpoints:\n"
@@ -396,7 +396,7 @@ def test_validator_blocks_on_invalid_resolved_endpoints():
         {
             "ui-default-sort-by": "name",
             "ui-default-filter-by": "none",
-            "endpoints": "some raw endpoints with [mm-webhook:trino]",
+            "endpoints": "some raw endpoints with [webhook-url:trino]",
         },
     )
 

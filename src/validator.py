@@ -9,7 +9,7 @@ import yaml
 from ops.model import ActiveStatus, BlockedStatus, ConfigData, StatusBase
 from pydantic import ValidationError
 
-from constants import FAILED_TO_VALIDATE, INVALID_FILTER_BY_MESSAGE, INVALID_SORT_BY_MESSAGE, MM_WEBHOOK_PLACEHOLDER_RE
+from constants import FAILED_TO_VALIDATE, INVALID_FILTER_BY_MESSAGE, INVALID_SORT_BY_MESSAGE, WEBHOOK_URL_PLACEHOLDER_RE
 from gatus import GatusConfig
 
 logger = logging.getLogger(__name__)
@@ -19,8 +19,14 @@ class GatusValidator:
     """Validation functions for Gatus charm config."""
 
     @classmethod
-    def validate(cls, config: ConfigData, resolved_endpoints: str | None = None) -> StatusBase:
-        """Validate the application configuration."""
+    def validate(cls, config: ConfigData, endpoints: str | None = None) -> StatusBase:
+        """Validate the application configuration.
+
+        Args:
+            config: The application configuration.
+            endpoints: The endpoints config, if it was resolved by the charm.
+
+        """
         logger.info("Validating config")
 
         if config["ui-default-sort-by"] not in ["name", "group", "health"]:
@@ -29,12 +35,13 @@ class GatusValidator:
         if config["ui-default-filter-by"] not in ["none", "failing", "unstable"]:
             return BlockedStatus(INVALID_FILTER_BY_MESSAGE)
 
-        config_keys = ["announcements", "endpoints"]
-        for config_key in config_keys:
-            resolved_yaml = resolved_endpoints if config_key == "endpoints" else None
-            msg = cls._validate_yaml(config, config_key, resolved_yaml=resolved_yaml)
-            if msg:
-                return BlockedStatus(msg)
+        msg = cls._validate_yaml(config, "announcements")
+        if msg:
+            return BlockedStatus(msg)
+
+        msg = cls._validate_yaml(config, "endpoints", resolved_yaml=endpoints)
+        if msg:
+            return BlockedStatus(msg)
 
         return ActiveStatus()
 
@@ -50,11 +57,11 @@ class GatusValidator:
         if not config_item:
             return None
 
-        logger.info(f"Validating {config_key} config: {config_item}")
+        logger.info(f"Validating {config_key} config.")
 
         if resolved_yaml is not None:
             yaml_to_validate = resolved_yaml
-        elif config_key == "endpoints" and MM_WEBHOOK_PLACEHOLDER_RE.search(config_item):
+        elif config_key == "endpoints" and WEBHOOK_URL_PLACEHOLDER_RE.search(config_item):
             logger.debug(
                 "Skipping validation for %s: contains unresolved secret placeholders",
                 config_key,
