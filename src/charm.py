@@ -136,6 +136,10 @@ class GatusCharm(paas_charm.go.Charm):
         else:
             logger.warn("Invalid log level: %s", log_level)
 
+        oidc_env = self._get_oidc_env()
+        if oidc_env:
+            env.update(oidc_env)
+
         env_layer = LayerDict(
             {
                 "services": {
@@ -149,6 +153,36 @@ class GatusCharm(paas_charm.go.Charm):
 
         container.add_layer("go-env-layer", env_layer, combine=True)
         container.replan()
+
+    def _get_oidc_env(self) -> dict[str, str]:
+        """Get OIDC environment variables.
+
+        Returns:
+            A dictionary of OIDC environment variables.
+
+        """
+        oidc_env = {}
+
+        oauth_relation = self.model.get_relation("oauth")
+        logger.debug("Found oauth relation: %s", oauth_relation)
+        if oauth_relation and oauth_relation.app:
+            app_data = oauth_relation.data[oauth_relation.app]
+            logger.debug("Found oauth relation: %s", app_data)
+
+            if "client_id" in app_data:
+                oidc_env["APP_OAUTH_CLIENT_ID"] = app_data["client_id"]
+                oidc_env["APP_OAUTH_API_BASE_URL"] = app_data["issuer_url"]
+                logger.debug("Found oauth client id: %s", app_data["client_id"])
+                logger.debug("Found oauth issuer url: %s", app_data["issuer_url"])
+
+            # 3. Resolve the secret
+            secret_id = app_data.get("client_secret_id")
+            logger.debug("Found oauth client secret id: %s", secret_id)
+            if secret_id:
+                secret = self.model.get_secret(id=secret_id)
+                oidc_env["APP_OAUTH_CLIENT_SECRET"] = secret.get_content().get("client_secret", "")
+
+        return oidc_env
 
 
 if __name__ == "__main__":  # pragma: nocover

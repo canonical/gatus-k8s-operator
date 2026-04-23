@@ -50,6 +50,20 @@ juju grant-secret yoursecretid gatus-k8s
 juju config gatus-k8s mattermost-alerting="yoursecretid"
 ```
 
+### 4. OIDC authentication
+
+The charm supports OIDC authentication via a relation to a charm offering the `oauth` interface, such as [hydra](https://charmhub.io/hydra).
+
+```sh
+juju deploy hydra
+juju relate gatus-k8s hydra
+```
+
+The charm will automatically configure Gatus to use the OIDC provider.
+
+Optionally, a list of authorized users can be added via the `oidc-allowed-subjects` config.
+
+
 ## Development and testing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
