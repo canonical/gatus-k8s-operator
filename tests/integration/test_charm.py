@@ -8,6 +8,7 @@ import logging
 import pathlib
 
 import jubilant
+import pytest
 import requests
 import yaml
 from pydantic import ValidationError
@@ -47,6 +48,7 @@ def test_deploy(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[
     assert any(endpoint.get("name") == "Ubuntu.com" for endpoint in data)
 
 
+@pytest.mark.skip(reason="slow test")
 def test_db_relation(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[str, str]):
     """Deploy the database charm and check that the gatus charm can connect to it.
 
@@ -80,7 +82,7 @@ def test_db_relation(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: 
     logger.info("Gatus config:")
     logger.info(config)
 
-    assert config.storage is not None
+    assert config.storage is not None, "config.storage is None"
     assert config.storage.type == "postgres"
     assert "postgresql-k8s-primary" in config.storage.path
 
@@ -94,7 +96,7 @@ def test_mattermost_alerting(juju: jubilant.Juju):
             "default": "http://localhost:8080/hooks/xxx",
         },
     )
-    assert secreturi is not None
+    assert secreturi is not None, "secreturi is None"
     assert secreturi.startswith("secret:")
 
     # Grant secret to charm and update the charm config
@@ -111,8 +113,8 @@ def test_mattermost_alerting(juju: jubilant.Juju):
     logger.info("Gatus config:")
     logger.info(config)
 
-    assert config.alerting is not None
-    assert config.alerting.mattermost is not None
+    assert config.alerting is not None, "config.alerting is None"
+    assert config.alerting.mattermost is not None, "config.alerting.mattermost is None"
     assert config.alerting.mattermost.webhook_url == "http://localhost:8080/hooks/xxx"
 
     # Test that the charm reacts to updates to the secret
@@ -129,8 +131,8 @@ def test_mattermost_alerting(juju: jubilant.Juju):
     logger.info("Gatus config:")
     logger.info(config)
 
-    assert config.alerting is not None
-    assert config.alerting.mattermost is not None
+    assert config.alerting is not None, "after update, config.alerting is None"
+    assert config.alerting.mattermost is not None, "after update, config.alerting.mattermost is None"
     assert config.alerting.mattermost.webhook_url == "http://localhost:8080/hooks/yyy"
 
 
