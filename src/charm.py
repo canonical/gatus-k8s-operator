@@ -145,7 +145,6 @@ class GatusCharm(paas_charm.go.Charm):
         except KeyError as e:
             key = e.args[0]
             logger.error("Secret key '%s' not found in %s secret", key, MATTERMOST_ALERTING_CONFIG)
-            self.unit.status = BlockedStatus(f"Secret key '{key}' not found in {MATTERMOST_ALERTING_CONFIG} secret")
             return None
 
     def _update_env(self, container: Container) -> bool:
@@ -162,6 +161,15 @@ class GatusCharm(paas_charm.go.Charm):
 
         """
         env = {}
+        if alerting_secret:
+            default_webhook_url = alerting_secret.get("default")
+            if not default_webhook_url:
+                self.unit.status = BlockedStatus(
+                    f"Secret does not contain a 'default' key in {MATTERMOST_ALERTING_CONFIG}"
+                )
+                return False
+            # This is the default Mattermost webhook URL set in the `alerting` config
+            env["MATTERMOST_WEBHOOK_URL"] = default_webhook_url
 
         endpoints = str(self.model.config.get("endpoints", ""))
         if endpoints:
@@ -173,27 +181,22 @@ class GatusCharm(paas_charm.go.Charm):
                 )
                 return False
 
-            if alerting_secret:
-                default_webhook_url = alerting_secret.get("default")
-                if not default_webhook_url:
+            if has_placeholders and alerting_secret:
+                # Resolve the endpoints config by replacing [webhook-url:channel-name] placeholders
+                endpoints = self._resolve_secret_placeholders(endpoints, alerting_secret)
+                if endpoints is None:
                     self.unit.status = BlockedStatus(
-                        f"Secret does not contain a 'default' key in {MATTERMOST_ALERTING_CONFIG}"
+                        "Failed to resolve secret placeholders in endpoints config."
                     )
                     return False
-                # This is the default Mattermost webhook URL set in the `alerting` config
-                env["MATTERMOST_WEBHOOK_URL"] = default_webhook_url
 
-                # Resolve the endpoints config by replacing [webhook-url:channel-name] placeholders
-                if WEBHOOK_URL_PLACEHOLDER_RE.search(endpoints):
-                    endpoints = self._resolve_secret_placeholders(endpoints, alerting_secret)
-                    if endpoints is None:
-                        return False
-
+            # Re-validate the charm config with the resolved endpoints to ensure it's valid before applying it
             status = GatusValidator.validate(self.model.config, endpoints=endpoints)
             if status.name != "active":
                 self.unit.status = status
                 return False
             env["APP_ENDPOINTS"] = endpoints
+
         log_level = str(self.model.config["log-level"])
         if log_level.lower() in ["info", "debug", "warn", "error", "fatal"]:
             env["GATUS_LOG_LEVEL"] = log_level.upper()
