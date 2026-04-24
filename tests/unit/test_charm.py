@@ -241,19 +241,15 @@ def test_update_env_resolves_endpoint_placeholders_into_container_env():
         ),
         unit=SimpleNamespace(status=ActiveStatus()),
     )
-    charm._get_juju_secret_content = Mock(
-        return_value={
-            "default": "https://chat.example.com/hooks/default",
-            "trino": "https://chat.example.com/hooks/trino",
-        }
+    charm._get_default_webhook_url = Mock(return_value="https://chat.example.com/hooks/default")
+    charm._get_endpoints = Mock(
+        return_value=endpoints.replace("[webhook-url:trino]", "https://chat.example.com/hooks/trino")
     )
-    charm._resolve_secret_placeholders = MethodType(GatusCharm._resolve_secret_placeholders, charm)
 
     container = Mock()
 
-    result = GatusCharm._update_env(cast(GatusCharm, charm), container)
+    GatusCharm._update_env(cast(GatusCharm, charm), container)
 
-    assert result is True
     layer = container.add_layer.call_args.args[1]
     env = layer["services"][SERVICE_NAME]["environment"]
     assert env["MATTERMOST_WEBHOOK_URL"] == "https://chat.example.com/hooks/default"
@@ -264,12 +260,15 @@ def test_update_env_resolves_endpoint_placeholders_into_container_env():
 
 def test_update_env_blocks_when_placeholder_key_missing_from_secret():
     """Test that _update_env blocks when an endpoint references a missing secret key."""
+    from exceptions import BlockedStatusError
+
     endpoints = (
         "endpoints:\n"
         "  - name: Trino\n"
         "    url: https://trino.example.com\n"
         "    alerts:\n"
         "      - type: mattermost\n"
+        "        description: Trino is down\n"
         "        provider-override:\n"
         "          webhook-url: '[webhook-url:missing]'\n"
     )
@@ -287,16 +286,15 @@ def test_update_env_blocks_when_placeholder_key_missing_from_secret():
         ),
         unit=SimpleNamespace(status=ActiveStatus()),
     )
-    charm._get_juju_secret_content = Mock(return_value={"default": "https://chat.example.com/hooks/default"})
-    charm._resolve_secret_placeholders = MethodType(GatusCharm._resolve_secret_placeholders, charm)
+    charm._get_default_webhook_url = Mock(return_value="https://chat.example.com/hooks/default")
+    charm._get_endpoints = Mock(side_effect=BlockedStatusError("Failed to resolve secret placeholders in endpoints config."))
 
     container = Mock()
 
-    result = GatusCharm._update_env(cast(GatusCharm, charm), container)
+    with pytest.raises(BlockedStatusError) as exc_info:
+        GatusCharm._update_env(cast(GatusCharm, charm), container)
 
-    assert result is False
-    assert isinstance(charm.unit.status, BlockedStatus)
-    assert charm.unit.status.message == ("Failed to resolve secret placeholders in endpoints config.")
+    assert str(exc_info.value) == "Failed to resolve secret placeholders in endpoints config."
     container.add_layer.assert_not_called()
     container.replan.assert_not_called()
 
