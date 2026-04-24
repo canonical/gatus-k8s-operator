@@ -170,13 +170,13 @@ class GatusCharm(paas_charm.go.Charm):
 
         alerting_secret = self._get_juju_secret_content(MATTERMOST_ALERTING_CONFIG)
         has_placeholders = bool(WEBHOOK_URL_PLACEHOLDER_RE.search(endpoints))
-        if has_placeholders and not alerting_secret:
+        if has_placeholders and alerting_secret is None:
             self.unit.status = BlockedStatus(
                 f"Endpoints config contains secret placeholders but '{MATTERMOST_ALERTING_CONFIG}' is not configured"
             )
             return False
 
-        if alerting_secret:
+        if alerting_secret is not None:
             default_webhook_url = alerting_secret.get("default")
             if not default_webhook_url:
                 self.unit.status = BlockedStatus(
