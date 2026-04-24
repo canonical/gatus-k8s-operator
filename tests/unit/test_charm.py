@@ -19,7 +19,6 @@ from constants import (
     FAILED_TO_VALIDATE,
     INVALID_FILTER_BY_MESSAGE,
     INVALID_SORT_BY_MESSAGE,
-    MATTERMOST_ALERTING_CONFIG,
     SERVICE_NAME,
 )
 from gatus import EndpointAlert, GatusConfig, ProviderOverride
@@ -297,7 +296,7 @@ def test_update_env_blocks_when_placeholder_key_missing_from_secret():
 
     assert result is False
     assert isinstance(charm.unit.status, BlockedStatus)
-    assert charm.unit.status.message == (f"Failed to resolve secret placeholders in endpoints config.")
+    assert charm.unit.status.message == ("Failed to resolve secret placeholders in endpoints config.")
     container.add_layer.assert_not_called()
     container.replan.assert_not_called()
 

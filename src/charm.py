@@ -14,6 +14,7 @@ from ops.model import BlockedStatus, Container, ModelError, SecretNotFoundError
 from ops.pebble import LayerDict
 
 from constants import CONTAINER_NAME, MATTERMOST_ALERTING_CONFIG, SERVICE_NAME, WEBHOOK_URL_PLACEHOLDER_RE
+from exceptions import BlockedStatusError
 from validator import GatusValidator
 
 logger = logging.getLogger(__name__)
@@ -64,7 +65,12 @@ class GatusCharm(paas_charm.go.Charm):
             return
 
         # Update environment variables based on config
-        if not self._update_env(container):
+        try:
+            if not self._update_env(container):
+                return
+        except BlockedStatusError as e:
+            logger.error("Failed to update environment variables: %s", e)
+            self.unit.status = BlockedStatus(e.args[0])
             return
 
         self.restart()
@@ -147,6 +153,57 @@ class GatusCharm(paas_charm.go.Charm):
             logger.error("Secret key '%s' not found in %s secret", key, MATTERMOST_ALERTING_CONFIG)
             return None
 
+    def _get_default_webhook_url(self) -> str | None:
+        """Set the default Mattermost webhook URL in the container environment.
+
+        Returns:
+            The Mattermost webhook URL, or None if the config/secret is not set.
+
+        Raises:
+            BlockedStatusError: If the secret exists but does not contain a 'default' key.
+
+        """
+        alerting_secret = self._get_juju_secret_content(MATTERMOST_ALERTING_CONFIG)
+        if not alerting_secret:
+            return None
+
+        default_webhook_url = alerting_secret.get("default")
+        if not default_webhook_url:
+            raise BlockedStatusError(f"Secret does not contain a 'default' key in {MATTERMOST_ALERTING_CONFIG}")
+        # This is the default Mattermost webhook URL set in the `alerting` config
+        return default_webhook_url
+
+    def _get_endpoints(self) -> str | None:
+        """Get the endpoints config from the charm config.
+
+        Returns:
+            The endpoints config, or None if the config is not set.
+
+        """
+        endpoints = str(self.model.config.get("endpoints", ""))
+        if not endpoints:
+            return None
+
+        alerting_secret = self._get_juju_secret_content(MATTERMOST_ALERTING_CONFIG)
+        has_placeholders = bool(WEBHOOK_URL_PLACEHOLDER_RE.search(endpoints))
+        if has_placeholders and not alerting_secret:
+            raise BlockedStatusError(
+                f"Endpoints config contains secret placeholders but'{MATTERMOST_ALERTING_CONFIG}' is not configured"
+            )
+
+        if has_placeholders and alerting_secret:
+            # Resolve the endpoints config by replacing [webhook-url:channel-name] placeholders
+            endpoints = self._resolve_secret_placeholders(endpoints, alerting_secret)
+            if endpoints is None:
+                raise BlockedStatusError("Failed to resolve secret placeholders in endpoints config.")
+
+        # Re-validate the charm config with the resolved endpoints to ensure it's valid before applying it
+        status = GatusValidator.validate(self.model.config, endpoints=endpoints)
+        if status.name != "active":
+            raise BlockedStatusError(status.message)
+
+        return endpoints
+
     def _update_env(self, container: Container) -> bool:
         """Create a pebble layer to add environment variables to the container.
 
@@ -161,41 +218,10 @@ class GatusCharm(paas_charm.go.Charm):
 
         """
         env = {}
-        alerting_secret = self._get_juju_secret_content(MATTERMOST_ALERTING_CONFIG)
-        if alerting_secret:
-            default_webhook_url = alerting_secret.get("default")
-            if not default_webhook_url:
-                self.unit.status = BlockedStatus(
-                    f"Secret does not contain a 'default' key in {MATTERMOST_ALERTING_CONFIG}"
-                )
-                return False
-            # This is the default Mattermost webhook URL set in the `alerting` config
-            env["MATTERMOST_WEBHOOK_URL"] = default_webhook_url
+        logger.info("Starting to update environment variables.")
 
-        endpoints = str(self.model.config.get("endpoints", ""))
-        if endpoints:
-            has_placeholders = bool(WEBHOOK_URL_PLACEHOLDER_RE.search(endpoints))
-            if has_placeholders and not alerting_secret:
-                self.unit.status = BlockedStatus(
-                    f"Endpoints config contains secret placeholders but'{MATTERMOST_ALERTING_CONFIG}' is not configured"
-                )
-                return False
-
-            if has_placeholders and alerting_secret:
-                # Resolve the endpoints config by replacing [webhook-url:channel-name] placeholders
-                endpoints = self._resolve_secret_placeholders(endpoints, alerting_secret)
-                if endpoints is None:
-                    self.unit.status = BlockedStatus(
-                        "Failed to resolve secret placeholders in endpoints config."
-                    )
-                    return False
-
-            # Re-validate the charm config with the resolved endpoints to ensure it's valid before applying it
-            status = GatusValidator.validate(self.model.config, endpoints=endpoints)
-            if status.name != "active":
-                self.unit.status = status
-                return False
-            env["APP_ENDPOINTS"] = endpoints
+        env["MATTERMOST_WEBHOOK_URL"] = self._get_default_webhook_url()
+        env["APP_ENDPOINTS"] = self._get_endpoints()
 
         log_level = str(self.model.config["log-level"])
         if log_level.lower() in ["info", "debug", "warn", "error", "fatal"]:
@@ -216,6 +242,7 @@ class GatusCharm(paas_charm.go.Charm):
 
         container.add_layer("go-env-layer", env_layer, combine=True)
         container.replan()
+        logger.info("Environment variables updated successfully. Check pebble plan.")
         return True
 
 

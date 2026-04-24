@@ -27,8 +27,6 @@ class GatusValidator:
             endpoints: The endpoints config, if it was resolved by the charm.
 
         """
-        logger.info("Validating config")
-
         if config["ui-default-sort-by"] not in ["name", "group", "health"]:
             return BlockedStatus(INVALID_SORT_BY_MESSAGE)
 
