@@ -180,7 +180,7 @@ class GatusCharm(paas_charm.go.Charm):
             logger.debug("Found oauth client secret id: %s", secret_id)
             if secret_id:
                 secret = self.model.get_secret(id=secret_id)
-                oidc_env["APP_OAUTH_CLIENT_SECRET"] = secret.get_content().get("client_secret", "")
+                oidc_env["APP_OAUTH_CLIENT_SECRET"] = secret.get_content().get("secret", "")
 
         return oidc_env
 
