@@ -67,13 +67,15 @@ config:
       description: |
         The callback path that Gatus listens on for the OAuth/OIDC redirect.
         This must match the path registered with your identity provider.
-        Gatus uses /authorization-code/callback by default.
+        Gatus uses /authorization-code/callback by default. Generally,
+        you should not need to change this.
       type: string
       default: "/authorization-code/callback"
     oauth-scopes:
       description: |
         Space-separated list of OIDC scopes to request from the identity provider.
-        The openid scope is mandatory and must always be included.
+        The openid scope is mandatory and must always be included. Generally,
+        you should not need to change this.
       type: string
       default: "openid"
     oidc-allowed-subjects:
