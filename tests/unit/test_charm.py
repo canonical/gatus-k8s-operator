@@ -5,7 +5,7 @@
 
 import logging
 from datetime import datetime, timezone
-from types import MethodType, SimpleNamespace
+from types import SimpleNamespace
 from typing import cast
 from unittest.mock import Mock
 
@@ -20,7 +20,9 @@ from constants import (
     INVALID_FILTER_BY_MESSAGE,
     INVALID_SORT_BY_MESSAGE,
     SERVICE_NAME,
+    WEBHOOK_URL_PLACEHOLDER_RE,
 )
+from exceptions import BlockedStatusError
 from gatus import EndpointAlert, GatusConfig, ProviderOverride
 from validator import GatusValidator
 
@@ -182,8 +184,6 @@ def test_provider_override_model():
 
 def test_resolve_secret_placeholders_substitutes_known_keys():
     """Test that _resolve_secret_placeholders correctly substitutes known keys."""
-    from constants import WEBHOOK_URL_PLACEHOLDER_RE
-
     raw_yaml = "webhook-url: '[webhook-url:trino]'"
     secret_content = {"trino": "https://chat.example.com/hooks/abc123"}
 
@@ -197,8 +197,6 @@ def test_resolve_secret_placeholders_substitutes_known_keys():
 
 def test_resolve_secret_placeholders_multiple_keys():
     """Test that _resolve_secret_placeholders substitutes multiple placeholders."""
-    from constants import WEBHOOK_URL_PLACEHOLDER_RE
-
     raw_yaml = "webhook-url: '[webhook-url:default]'\nprovider-override:\n  webhook-url: '[webhook-url:trino]'"
     secret_content = {
         "default": "https://chat.example.com/hooks/default",
@@ -217,16 +215,8 @@ def test_resolve_secret_placeholders_multiple_keys():
 
 def test_update_env_resolves_endpoint_placeholders_into_container_env():
     """Test that _update_env resolves placeholders and injects the resolved endpoints."""
-    endpoints = (
-        "endpoints:\n"
-        "  - name: Trino\n"
-        "    url: https://trino.example.com\n"
-        "    alerts:\n"
-        "      - type: mattermost\n"
-        "        description: Trino is down\n"
-        "        provider-override:\n"
-        "          webhook-url: '[webhook-url:trino]'\n"
-    )
+    with open("tests/data/endpoints-with-provider-override.yaml", "r") as f:
+        endpoints = f.read()
     charm = SimpleNamespace(
         model=SimpleNamespace(
             config=cast(
@@ -243,7 +233,7 @@ def test_update_env_resolves_endpoint_placeholders_into_container_env():
     )
     charm._get_default_webhook_url = Mock(return_value="https://chat.example.com/hooks/default")
     charm._get_endpoints = Mock(
-        return_value=endpoints.replace("[webhook-url:trino]", "https://chat.example.com/hooks/trino")
+        return_value=endpoints.replace("[webhook-url:channel-1]", "https://chat.example.com/hooks/trino")
     )
 
     container = Mock()
@@ -253,25 +243,16 @@ def test_update_env_resolves_endpoint_placeholders_into_container_env():
     layer = container.add_layer.call_args.args[1]
     env = layer["services"][SERVICE_NAME]["environment"]
     assert env["MATTERMOST_WEBHOOK_URL"] == "https://chat.example.com/hooks/default"
-    assert env["APP_ENDPOINTS"] == endpoints.replace("[webhook-url:trino]", "https://chat.example.com/hooks/trino")
+    assert env["APP_ENDPOINTS"] == endpoints.replace("[webhook-url:channel-1]", "https://chat.example.com/hooks/trino")
     assert env["GATUS_LOG_LEVEL"] == "INFO"
     container.replan.assert_called_once_with()
 
 
 def test_update_env_blocks_when_placeholder_key_missing_from_secret():
     """Test that _update_env blocks when an endpoint references a missing secret key."""
-    from exceptions import BlockedStatusError
+    with open("tests/data/endpoints-with-provider-override.yaml", "r") as f:
+        endpoints = f.read()
 
-    endpoints = (
-        "endpoints:\n"
-        "  - name: Trino\n"
-        "    url: https://trino.example.com\n"
-        "    alerts:\n"
-        "      - type: mattermost\n"
-        "        description: Trino is down\n"
-        "        provider-override:\n"
-        "          webhook-url: '[webhook-url:missing]'\n"
-    )
     charm = SimpleNamespace(
         model=SimpleNamespace(
             config=cast(
@@ -345,16 +326,8 @@ def test_validator_does_not_skip_announcements_with_placeholder_literal():
 
 def test_validator_validates_resolved_endpoints():
     """Test that validation uses resolved_endpoints when provided."""
-    raw_endpoints = (
-        "endpoints:\n"
-        "  - name: Trino\n"
-        "    url: https://trino.example.com\n"
-        "    alerts:\n"
-        "      - type: mattermost\n"
-        "        description: Trino is down\n"
-        "        provider-override:\n"
-        "          webhook-url: '[webhook-url:trino]'\n"
-    )
+    with open("tests/data/endpoints-with-provider-override.yaml", "r") as f:
+        raw_endpoints = f.read()
     resolved_endpoints = (
         "endpoints:\n"
         "  - name: Trino\n"
