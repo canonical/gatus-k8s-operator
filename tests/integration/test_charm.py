@@ -12,7 +12,7 @@ import requests
 import yaml
 from pydantic import ValidationError
 
-from constants import FAILED_TO_VALIDATE
+from constants import FAILED_TO_VALIDATE, FAILED_TO_UPDATE_ENVIRONMENT
 from gatus import GatusConfig
 
 logger = logging.getLogger(__name__)
@@ -187,7 +187,7 @@ def test_invalid_endpoints_config(juju: jubilant.Juju):
     status = juju.status()
     workload_status = status.apps[APP_NAME].units[APP_NAME + "/0"].workload_status
     assert workload_status.current == "blocked"
-    assert workload_status.message == FAILED_TO_VALIDATE
+    assert workload_status.message == FAILED_TO_UPDATE_ENVIRONMENT
 
 
 def test_endpoints_config(juju: jubilant.Juju):
@@ -239,7 +239,7 @@ def test_invalid_announcements_config(juju: jubilant.Juju):
     status = juju.status()
     workload_status = status.apps[APP_NAME].units[APP_NAME + "/0"].workload_status
     assert workload_status.current == "blocked"
-    assert workload_status.message == FAILED_TO_VALIDATE
+    assert workload_status.message == FAILED_TO_UPDATE_ENVIRONMENT
 
 
 def test_announcements_config(juju: jubilant.Juju):

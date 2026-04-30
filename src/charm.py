@@ -13,7 +13,7 @@ from ops.framework import EventBase
 from ops.model import ActiveStatus, BlockedStatus, Container, ModelError, SecretNotFoundError
 from ops.pebble import LayerDict
 
-from constants import CONTAINER_NAME, MATTERMOST_ALERTING_CONFIG, SERVICE_NAME, WEBHOOK_URL_PLACEHOLDER_RE
+from constants import CONTAINER_NAME, MATTERMOST_ALERTING_CONFIG, SERVICE_NAME, WEBHOOK_URL_PLACEHOLDER_RE, FAILED_TO_UPDATE_ENVIRONMENT
 from exceptions import BlockedStatusError
 from validator import GatusValidator
 
@@ -69,7 +69,7 @@ class GatusCharm(paas_charm.go.Charm):
             self._update_env(container)
         except BlockedStatusError as e:
             logger.error("Failed to update environment variables: %s", e)
-            self.unit.status = BlockedStatus("Failed to update environment variables. Check logs.")
+            self.unit.status = BlockedStatus(FAILED_TO_UPDATE_ENVIRONMENT)
             return
 
         self.restart()
