@@ -181,7 +181,9 @@ class GatusCharm(paas_charm.go.Charm):
 
         """
         endpoints = str(self.model.config.get("endpoints", ""))
+        logger.info("Endpoints config: %s", endpoints)
         if not endpoints:
+            logger.info("No endpoints config set, using default")
             return None
 
         alerting_secret = self._get_juju_secret_content(MATTERMOST_ALERTING_CONFIG)
@@ -223,13 +225,8 @@ class GatusCharm(paas_charm.go.Charm):
         env = {}
         logger.info("Starting to update environment variables.")
 
-        default_webhook_url = self._get_default_webhook_url()
-        if default_webhook_url is not None:
-            env["MATTERMOST_WEBHOOK_URL"] = default_webhook_url
-
-        endpoints = self._get_endpoints()
-        if endpoints is not None:
-            env["APP_ENDPOINTS"] = endpoints
+        env["MATTERMOST_WEBHOOK_URL"] = self._get_default_webhook_url()
+        env["APP_ENDPOINTS"] = self._get_endpoints()
 
         log_level = str(self.model.config["log-level"])
         if log_level.lower() in ["info", "debug", "warn", "error", "fatal"]:
