@@ -163,7 +163,7 @@ class GatusCharm(paas_charm.go.Charm):
         """
         oidc_env = {}
 
-        oauth_relation = self.model.get_relation("oauth")
+        oauth_relation = self.model.get_relation("oidc")
         logger.debug("Found oauth relation: %s", oauth_relation)
         if oauth_relation and oauth_relation.app:
             app_data = oauth_relation.data[oauth_relation.app]

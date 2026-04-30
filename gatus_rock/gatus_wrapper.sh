@@ -84,24 +84,24 @@ EOF
 fi
 
 # If the oauth relation is established, configure OIDC authentication
-if [[ -n "${APP_OAUTH_CLIENT_ID:-}" && -n "${APP_OAUTH_CLIENT_SECRET:-}" && -n "${APP_OAUTH_API_BASE_URL:-}" && -n "${APP_BASE_URL:-}" ]]; then
+if [[ -n "${APP_OIDC_CLIENT_ID:-}" && -n "${APP_OIDC_CLIENT_SECRET:-}" && -n "${APP_OIDC_API_BASE_URL:-}" && -n "${APP_BASE_URL:-}" ]]; then
 	echo "Configuring OIDC authentication via OAuth relation"
 
-	REDIRECT_PATH="${APP_OAUTH_REDIRECT_PATH:-/authorization-code/callback}"
+	REDIRECT_PATH="${APP_OIDC_REDIRECT_PATH:-/authorization-code/callback}"
 	REDIRECT_URI="${APP_BASE_URL%/}/${REDIRECT_PATH#/}"
 
 	cat > "$SECURITY_FILE" <<EOF
 security:
   oidc:
-    issuer-url: ${APP_OAUTH_API_BASE_URL}
+    issuer-url: ${APP_OIDC_API_BASE_URL}
     redirect-url: ${REDIRECT_URI}
-    client-id: ${APP_OAUTH_CLIENT_ID}
-    client-secret: ${APP_OAUTH_CLIENT_SECRET}
+    client-id: ${APP_OIDC_CLIENT_ID}
+    client-secret: ${APP_OIDC_CLIENT_SECRET}
     scopes:
 EOF
 
 	# Append scopes as a YAML list (space-separated per oauth relation convention)
-	read -ra SCOPES <<< "${APP_OAUTH_SCOPES:-openid}"
+	read -ra SCOPES <<< "${APP_OIDC_SCOPES:-openid}"
 	if [[ ${#SCOPES[@]} -eq 0 ]]; then
 		SCOPES=("openid")
 	fi

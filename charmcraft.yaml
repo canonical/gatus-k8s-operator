@@ -63,7 +63,7 @@ config:
         Whether to use an insecure connection to Mattermost.
       type: boolean
       default: false
-    oauth-redirect-path:
+    oidc-redirect-path:
       description: |
         The callback path that Gatus listens on for the OAuth/OIDC redirect.
         This must match the path registered with your identity provider.
@@ -71,7 +71,7 @@ config:
         you should not need to change this.
       type: string
       default: "/authorization-code/callback"
-    oauth-scopes:
+    oidc-scopes:
       description: |
         Space-separated list of OIDC scopes to request from the identity provider.
         The openid scope is mandatory and must always be included. Generally,
@@ -131,7 +131,7 @@ requires:
     interface: postgresql_client
     optional: true
     limit: 1
-  oauth:
+  oidc:
     interface: oauth
     optional: true
     limit: 1
