@@ -282,21 +282,14 @@ def test_update_env_blocks_when_placeholder_key_missing_from_secret():
 
 def test_validator_skips_endpoints_with_placeholders():
     """Test that validation is skipped for endpoints YAML containing [webhook-url:...] placeholders."""
+    with open("tests/data/endpoints-with-provider-override.yaml", "r") as f:
+        endpoints = f.read()
     config = cast(
         ConfigData,
         {
             "ui-default-sort-by": "name",
             "ui-default-filter-by": "none",
-            "endpoints": (
-                "endpoints:\n"
-                "  - name: Trino\n"
-                "    url: https://trino.example.com\n"
-                "    alerts:\n"
-                "      - type: mattermost\n"
-                "        description: Trino is down\n"
-                "        provider-override:\n"
-                "          webhook-url: '[webhook-url:trino]'\n"
-            ),
+            "endpoints": endpoints,
         },
     )
 
@@ -315,7 +308,7 @@ def test_validator_does_not_skip_announcements_with_placeholder_literal():
                 "announcements:\n"
                 "  - timestamp: 2026-01-08T06:00:00Z\n"
                 "    type: information\n"
-                "    message: '[webhook-url:trino]'\n"
+                "    message: '[webhook-url:channel-1]'\n"
             ),
         },
     )
@@ -328,16 +321,8 @@ def test_validator_validates_resolved_endpoints():
     """Test that validation uses resolved_endpoints when provided."""
     with open("tests/data/endpoints-with-provider-override.yaml", "r") as f:
         raw_endpoints = f.read()
-    resolved_endpoints = (
-        "endpoints:\n"
-        "  - name: Trino\n"
-        "    url: https://trino.example.com\n"
-        "    alerts:\n"
-        "      - type: mattermost\n"
-        "        description: Trino is down\n"
-        "        provider-override:\n"
-        "          webhook-url: 'https://chat.example.com/hooks/trino'\n"
-    )
+    with open("tests/data/endpoints-with-resolved-override.yaml", "r") as f:
+        resolved_endpoints = f.read()
     config = cast(
         ConfigData,
         {
