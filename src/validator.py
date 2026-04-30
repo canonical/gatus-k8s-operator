@@ -45,7 +45,17 @@ class GatusValidator:
 
     @classmethod
     def _validate_yaml(cls, config: ConfigData, config_key: str, resolved_yaml: str | None = None) -> str | None:
-        """Validate the YAML configuration for announcements and endpoints."""
+        """Validate the YAML configuration for announcements and endpoints.
+
+        Args:
+            config: The application configuration.
+            config_key: The key of the configuration to validate.
+            resolved_yaml: The resolved YAML configuration, if it was resolved by the charm.
+
+        Returns:
+            None if the configuration is valid, or a string describing the error otherwise.
+
+        """
         config_dict = {}
 
         if config_key not in config:
