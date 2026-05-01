@@ -218,22 +218,6 @@ def test_endpoints_config(juju: jubilant.Juju):
     assert any(endpoint.get("name") == "GitHub" for endpoint in data)
 
 
-def test_invalid_announcements_config(juju: jubilant.Juju):
-    """Test that the endpoint config is correctly parsed."""
-    with open("tests/data/announcements-invalid.yaml", "r") as f:
-        announcements_string = f.read()
-    juju.config(APP_NAME, {"announcements": announcements_string})
-
-    # Wait for the model to settle
-    juju.wait(lambda status: jubilant.all_agents_idle(status, APP_NAME), timeout=300, delay=10)
-
-    # Check that the charm is blocked by the invalid config
-    status = juju.status()
-    workload_status = status.apps[APP_NAME].units[APP_NAME + "/0"].workload_status
-    assert workload_status.current == "blocked"
-    assert workload_status.message == FAILED_TO_VALIDATE
-
-
 def test_announcements_config(juju: jubilant.Juju):
     """Test that the announcements config is correctly parsed."""
     with open("tests/data/announcements.yaml", "r") as f:
@@ -251,6 +235,22 @@ def test_announcements_config(juju: jubilant.Juju):
     assert config.announcements[0].message == "Scheduled maintenance on database servers from 14:00 to 16:00 UTC"
 
     # Gatus doesn't show announcements in an API, so we cannot test it further for now.
+
+
+def test_invalid_announcements_config(juju: jubilant.Juju):
+    """Test that the endpoint config is correctly parsed."""
+    with open("tests/data/announcements-invalid.yaml", "r") as f:
+        announcements_string = f.read()
+    juju.config(APP_NAME, {"announcements": announcements_string})
+
+    # Wait for the model to settle
+    juju.wait(lambda status: jubilant.all_agents_idle(status, APP_NAME), timeout=300, delay=10)
+
+    # Check that the charm is blocked by the invalid config
+    status = juju.status()
+    workload_status = status.apps[APP_NAME].units[APP_NAME + "/0"].workload_status
+    assert workload_status.current == "blocked"
+    assert workload_status.message == FAILED_TO_VALIDATE
 
 
 def get_config(juju: jubilant.Juju) -> GatusConfig:

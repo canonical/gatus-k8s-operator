@@ -268,7 +268,9 @@ def test_update_env_blocks_when_placeholder_key_missing_from_secret():
         unit=SimpleNamespace(status=ActiveStatus()),
     )
     charm._get_default_webhook_url = Mock(return_value="https://chat.example.com/hooks/default")
-    charm._get_endpoints = Mock(side_effect=BlockedStatusError("Failed to resolve secret placeholders in endpoints config."))
+    charm._get_endpoints = Mock(
+        side_effect=BlockedStatusError("Failed to resolve secret placeholders in endpoints config.")
+    )
 
     container = Mock()
 

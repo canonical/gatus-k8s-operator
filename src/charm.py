@@ -13,7 +13,13 @@ from ops.framework import EventBase
 from ops.model import ActiveStatus, BlockedStatus, Container, ModelError, SecretNotFoundError
 from ops.pebble import LayerDict
 
-from constants import CONTAINER_NAME, MATTERMOST_ALERTING_CONFIG, SERVICE_NAME, WEBHOOK_URL_PLACEHOLDER_RE, FAILED_TO_UPDATE_ENVIRONMENT
+from constants import (
+    CONTAINER_NAME,
+    FAILED_TO_UPDATE_ENVIRONMENT,
+    MATTERMOST_ALERTING_CONFIG,
+    SERVICE_NAME,
+    WEBHOOK_URL_PLACEHOLDER_RE,
+)
 from exceptions import BlockedStatusError
 from validator import GatusValidator
 
@@ -121,6 +127,7 @@ class GatusCharm(paas_charm.go.Charm):
                 secret_id,
                 str(e),
             )
+            raise BlockedStatusError(f"Permission denied accessing secret '{secret_id}': {str(e)}")
             return None
 
     def _resolve_secret_placeholders(self, raw_yaml: str, secret_content: dict[str, str]) -> str | None:
@@ -137,6 +144,7 @@ class GatusCharm(paas_charm.go.Charm):
             The resolved YAML string, or None if a referenced key was not found.
 
         """
+
         def replace_placeholder(match) -> str:
             channel = match.group(1)
             if channel not in secret_content:
@@ -160,11 +168,15 @@ class GatusCharm(paas_charm.go.Charm):
             BlockedStatusError: If the secret exists but does not contain a 'default' key.
 
         """
+        logger.info("Getting default webhook URL from secret")
         alerting_secret = self._get_juju_secret_content(MATTERMOST_ALERTING_CONFIG)
+        logger.info("Alerting secret: %s", alerting_secret)
         if not alerting_secret:
             return None
+        logger.info("Alerting secret exists")
 
         default_webhook_url = alerting_secret.get("default")
+        logger.info("Default webhook URL: %s", default_webhook_url)
         if not default_webhook_url:
             raise BlockedStatusError(f"Secret does not contain a 'default' key in {MATTERMOST_ALERTING_CONFIG}")
         # This is the default Mattermost webhook URL set in the `alerting` config
@@ -226,6 +238,7 @@ class GatusCharm(paas_charm.go.Charm):
         logger.info("Starting to update environment variables.")
 
         env["MATTERMOST_WEBHOOK_URL"] = self._get_default_webhook_url()
+        logger.info("Mattermost webhook URL: %s", env["MATTERMOST_WEBHOOK_URL"])
         env["APP_ENDPOINTS"] = self._get_endpoints()
 
         log_level = str(self.model.config["log-level"])

@@ -7,7 +7,6 @@
 import logging
 import os
 import pathlib
-import sys
 import time
 
 import jubilant
@@ -30,7 +29,6 @@ def juju(request: FixtureRequest):
             logger.error("Juju debug log:")
             for line in log.splitlines():
                 logger.error(line)
-            sys.exit(1)
 
 
 @pytest.fixture(scope="session")
