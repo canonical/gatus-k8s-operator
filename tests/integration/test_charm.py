@@ -12,7 +12,7 @@ import requests
 import yaml
 from pydantic import ValidationError
 
-from constants import FAILED_TO_VALIDATE, FAILED_TO_UPDATE_ENVIRONMENT
+from constants import FAILED_TO_UPDATE_ENVIRONMENT, FAILED_TO_VALIDATE
 from gatus import GatusConfig
 
 logger = logging.getLogger(__name__)
@@ -77,8 +77,6 @@ def test_db_relation(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: 
 
     # Get the config of the gatus charm
     config = get_config(juju)
-    logger.info("Gatus config:")
-    logger.info(config)
 
     assert config.storage is not None, "config.storage is None"
     assert config.storage.type == "postgres"
@@ -108,8 +106,6 @@ def test_mattermost_alerting(juju: jubilant.Juju):
 
     # Get the config of the gatus charm
     config = get_config(juju)
-    logger.info("Gatus config:")
-    logger.info(config)
 
     assert config.alerting is not None, "config.alerting is None"
     assert config.alerting.mattermost is not None, "config.alerting.mattermost is None"
@@ -126,8 +122,6 @@ def test_mattermost_alerting(juju: jubilant.Juju):
 
     # Get the config of the gatus charm
     config = get_config(juju)
-    logger.info("Gatus config:")
-    logger.info(config)
 
     assert config.alerting is not None, "after update, config.alerting is None"
     assert config.alerting.mattermost is not None, "after update, config.alerting.mattermost is None"
@@ -200,8 +194,6 @@ def test_endpoints_config(juju: jubilant.Juju):
 
     # Get the config of the gatus charm
     config = get_config(juju)
-    logger.info("Gatus config:")
-    logger.info(config)
 
     assert config.endpoints is not None
     assert len(config.endpoints) > 0
@@ -239,7 +231,7 @@ def test_invalid_announcements_config(juju: jubilant.Juju):
     status = juju.status()
     workload_status = status.apps[APP_NAME].units[APP_NAME + "/0"].workload_status
     assert workload_status.current == "blocked"
-    assert workload_status.message == FAILED_TO_UPDATE_ENVIRONMENT
+    assert workload_status.message == FAILED_TO_VALIDATE
 
 
 def test_announcements_config(juju: jubilant.Juju):
@@ -252,8 +244,6 @@ def test_announcements_config(juju: jubilant.Juju):
 
     # Get the config of the gatus charm
     config = get_config(juju)
-    logger.info("Gatus config:")
-    logger.info(config)
 
     assert config.announcements is not None
     assert len(config.announcements) > 0
@@ -265,8 +255,21 @@ def test_announcements_config(juju: jubilant.Juju):
 
 def get_config(juju: jubilant.Juju) -> GatusConfig:
     """Get the config of a charmed application."""
-    configs = []
+    pebble_plan = juju.ssh(
+        target=APP_NAME + "/0",
+        container="app",
+        command="pebble plan",
+    )
+    logger.info("Pebble plan: %s", pebble_plan)
 
+    config_files = juju.ssh(
+        target=APP_NAME + "/0",
+        container="app",
+        command="ls /config",
+    )
+    logger.info("Config files in container: %s", config_files)
+
+    configs = []
     config_files = [
         "storage",
         "alerting",
@@ -293,6 +296,10 @@ def get_config(juju: jubilant.Juju) -> GatusConfig:
     try:
         config = yaml.safe_load(config_string)
         gatus_config: GatusConfig = GatusConfig.model_validate(config)
+
+        logger.info("Gatus application config:")
+        logger.info(config)
+
         return gatus_config
     except yaml.YAMLError as e:
         logger.error(f"Failed to parse yaml: {e}")
