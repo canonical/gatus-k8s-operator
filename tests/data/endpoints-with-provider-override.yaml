@@ -1,0 +1,16 @@
+# Copyright 2025 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+endpoints:
+  - name: Trino
+    group: Data
+    url: "https://trino.example.com"
+    interval: 60s
+    conditions:
+      - "[STATUS] == 200"
+    alerts:
+      - type: mattermost
+        description: "Trino is down"
+        send-on-resolved: true
+        provider-override:
+          webhook-url: "[webhook-url:channel-1]"

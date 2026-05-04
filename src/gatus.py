@@ -52,12 +52,19 @@ class Alerting(BaseModel):
     mattermost: Mattermost
 
 
+class ProviderOverride(BaseModel):
+    """Configuration for Gatus provider override."""
+
+    webhook_url: str | None = Field(default=None, alias="webhook-url")
+
+
 class EndpointAlert(BaseModel):
     """Configuration for Gatus endpoint alert."""
 
     type: str
     description: str
     send_on_resolved: bool = Field(default=False, alias="send-on-resolved")
+    provider_override: ProviderOverride | None = Field(default=None, alias="provider-override")
 
 
 class Endpoint(BaseModel):
