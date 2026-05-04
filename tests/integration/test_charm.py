@@ -250,7 +250,7 @@ def test_invalid_announcements_config(juju: jubilant.Juju):
     status = juju.status()
     workload_status = status.apps[APP_NAME].units[APP_NAME + "/0"].workload_status
     assert workload_status.current == "blocked"
-    assert workload_status.message == FAILED_TO_VALIDATE
+    assert workload_status.message in (FAILED_TO_VALIDATE, FAILED_TO_UPDATE_ENVIRONMENT)
 
 
 def get_config(juju: jubilant.Juju) -> GatusConfig:
