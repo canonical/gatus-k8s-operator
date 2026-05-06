@@ -15,6 +15,7 @@ from pytest import FixtureRequest
 
 logger = logging.getLogger(__name__)
 
+APP_NAME = "gatus-k8s"
 
 @pytest.fixture(scope="module")
 def juju(request: FixtureRequest):
@@ -70,3 +71,15 @@ def charm_resources(request: FixtureRequest) -> dict[str, str]:
         )
 
     return {resource_name: rock_image_uri}
+
+@pytest.fixture(scope="session")
+def deployed_charm(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[str, str]):
+    status = juju.status()
+    if APP_NAME not in status.apps:
+        juju.deploy(charm.resolve(), app=APP_NAME, resources=charm_resources)
+        juju.wait(jubilant.all_active, timeout=300, delay=10)
+
+        status = juju.status()
+        unit = status.apps[APP_NAME].units[APP_NAME + "/0"]
+        # Check that the charm hooks are successful
+        assert unit.is_active

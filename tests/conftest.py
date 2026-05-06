@@ -2,7 +2,6 @@
 # See LICENSE file for licensing details.
 """Module for test customizations."""
 
-
 def pytest_addoption(parser):
     """Add parser switches."""
     # Used by the integration tests & operator workflows
