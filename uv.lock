@@ -312,7 +312,7 @@ unit = [
 [package.metadata]
 requires-dist = [
     { name = "ops", specifier = ">=3.0.0,<3.1.0" },
-    { name = "paas-charm", url = "https://github.com/RenanGreca/paas-charm/archive/refs/heads/patch-1.tar.gz" },
+    { name = "paas-charm", specifier = ">=1.11.2" },
 ]
 
 [package.metadata.requires-dev]
@@ -698,8 +698,8 @@ wheels = [
 
 [[package]]
 name = "paas-charm"
-version = "1.11.1"
-source = { url = "https://github.com/RenanGreca/paas-charm/archive/refs/heads/patch-1.tar.gz" }
+version = "1.11.2"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cosl" },
     { name = "jinja2" },
@@ -707,15 +707,9 @@ dependencies = [
     { name = "ops" },
     { name = "pydantic" },
 ]
-sdist = { hash = "sha256:b3898e7bbce99ea31cac019e1cac09059d7ab2e0d769c42c17f799e794ed6f70" }
-
-[package.metadata]
-requires-dist = [
-    { name = "cosl" },
-    { name = "jinja2", specifier = "==3.1.6" },
-    { name = "jsonschema", specifier = ">=4.26,<4.27" },
-    { name = "ops", specifier = ">=2.6" },
-    { name = "pydantic", specifier = "==2.13.3" },
+sdist = { url = "https://files.pythonhosted.org/packages/50/a8/95446dc09526c669cdb50162a4a5bfae5b1a6096ba3b4375c72dc01efe08/paas_charm-1.11.2.tar.gz", hash = "sha256:cb53878c4c58018c23560399bb0eb3519390a6fa313282c68f21f548b0f057dc", size = 75187, upload-time = "2026-05-05T06:50:13.312Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c5/ca/ba98d3e17d1adfc413f6e310109e3d19f5effeb49f78946910fad763f362/paas_charm-1.11.2-py3-none-any.whl", hash = "sha256:3ee6283464c01c658308768d8f85b3491b417eb596f316d8426f4e194557907c", size = 95838, upload-time = "2026-05-05T06:50:11.28Z" },
 ]
 
 [[package]]

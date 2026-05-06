@@ -12,7 +12,7 @@ requires-python = "==3.12.*"
 dependencies = [
     "ops>=3.0.0,<3.1.0",
     # "paas-charm>=1.9.0,<1.10.0",
-    "paas-charm @ https://github.com/RenanGreca/paas-charm/archive/refs/heads/patch-1.tar.gz",
+    "paas-charm>=1.11.2",
 ]
 
 [dependency-groups]

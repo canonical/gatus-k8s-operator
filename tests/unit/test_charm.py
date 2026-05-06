@@ -235,6 +235,7 @@ def test_update_env_resolves_endpoint_placeholders_into_container_env():
     charm._get_endpoints = Mock(
         return_value=endpoints.replace("[webhook-url:channel-1]", "https://chat.example.com/hooks/trino")
     )
+    charm._get_oidc_env = Mock(return_value=None)
 
     container = Mock()
 

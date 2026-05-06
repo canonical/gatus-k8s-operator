@@ -27,7 +27,7 @@ ops==3.0.0
     #   cosl
     #   gatus
     #   paas-charm
-paas-charm @ https://github.com/RenanGreca/paas-charm/archive/refs/heads/patch-1.tar.gz
+paas-charm==1.11.2
     # via gatus
 pydantic==2.13.3
     # via
