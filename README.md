@@ -40,15 +40,40 @@ juju config gatus-k8s endpoints=@./tests/data/endpoints.yaml
 Currently, the charm supports Mattermost alerting.
 
 Since alerts use webhook URLs that can be sensitive (anyone with the URL can send a message),
-they are configured using Juju secrets. To do so, create a secret with a `mattermost-webhook-url`
-key and add that secret ID to the `mattermost-alerting` charm config.
+they are configured using Juju secrets. To do so, create a secret containing a `default` key with the webhook URL.
+Add that secret ID to the `mattermost-alerting` charm config.
 The charm unpacks the secret and passes it as an environment variable to the rock script.
 
 ```sh
-juju add-secret gatus-secret mattermost-webhook-url="https://your.mattermost.instance/hooks/yourwebhookid"
+juju add-secret mattermost-alerting default="https://your.mattermost.instance/hooks/yourwebhookid"
 juju grant-secret yoursecretid gatus-k8s
 juju config gatus-k8s mattermost-alerting="yoursecretid"
 ```
+
+You can add additional webhook URLs to the `mattermost-alerting` juju secret, with keys named
+after the channels you want to send alerts to (e.g. `channel-name: "https://your.mattermost.instance/hooks/yourwebhookid"`).
+Then, these keys need to be mentioned in the endpoint configuration, as follows:
+
+```yaml
+# mattermost-alerting-secret.yaml
+default: "https://your.mattermost.instance/hooks/yourwebhookid"
+channel-name: "https://your.mattermost.instance/hooks/yourwebhookid"
+```
+
+```yaml
+# endpoints.yaml
+endpoints:
+  # ... Existing endpoints
+  - name: "" # User-facing name
+    # ... Existing configuration
+    alerts:
+      - type: mattermost
+        # ... Existing configuration
+        provider-override:
+          webhook-url: "[webhook-url:channel-name]"
+```
+
+The charm will automatically replace the `[webhook-url:channel-name]` placeholders with the actual webhook URLs.
 
 ### 4. OIDC authentication
 
@@ -62,7 +87,6 @@ juju relate gatus-k8s hydra
 The charm will automatically configure Gatus to use the OIDC provider.
 
 Optionally, a list of authorized users can be added via the `oidc-allowed-subjects` config.
-
 
 ## Development and testing
 

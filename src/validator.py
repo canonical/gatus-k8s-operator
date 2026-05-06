@@ -13,6 +13,7 @@ from constants import (
     FAILED_TO_VALIDATE,
     INVALID_FILTER_BY_MESSAGE,
     INVALID_SORT_BY_MESSAGE,
+    WEBHOOK_URL_PLACEHOLDER_RE,
 )
 from gatus import GatusConfig
 
@@ -23,27 +24,43 @@ class GatusValidator:
     """Validation functions for Gatus charm config."""
 
     @classmethod
-    def validate(cls, config: ConfigData) -> StatusBase:
-        """Validate the application configuration."""
-        logger.info("Validating config")
+    def validate(cls, config: ConfigData, endpoints: str | None = None) -> StatusBase:
+        """Validate the application configuration.
 
+        Args:
+            config: The application configuration.
+            endpoints: The endpoints config, if it was resolved by the charm.
+
+        """
         if config["ui-default-sort-by"] not in ["name", "group", "health"]:
             return BlockedStatus(INVALID_SORT_BY_MESSAGE)
 
         if config["ui-default-filter-by"] not in ["none", "failing", "unstable"]:
             return BlockedStatus(INVALID_FILTER_BY_MESSAGE)
 
-        config_keys = ["announcements", "endpoints"]
-        for config_key in config_keys:
-            msg = cls._validate_yaml(config, config_key)
-            if msg:
-                return BlockedStatus(msg)
+        msg = cls._validate_yaml(config, "announcements")
+        if msg:
+            return BlockedStatus(msg)
+
+        msg = cls._validate_yaml(config, "endpoints", resolved_yaml=endpoints)
+        if msg:
+            return BlockedStatus(msg)
 
         return ActiveStatus()
 
     @classmethod
-    def _validate_yaml(cls, config: ConfigData, config_key: str) -> str | None:
-        """Validate the YAML configuration for announcements and endpoints."""
+    def _validate_yaml(cls, config: ConfigData, config_key: str, resolved_yaml: str | None = None) -> str | None:
+        """Validate the YAML configuration for announcements and endpoints.
+
+        Args:
+            config: The application configuration.
+            config_key: The key of the configuration to validate.
+            resolved_yaml: The resolved YAML configuration, if it was resolved by the charm.
+
+        Returns:
+            None if the configuration is valid, or a string describing the error otherwise.
+
+        """
         config_dict = {}
 
         if config_key not in config:
@@ -53,11 +70,22 @@ class GatusValidator:
         if not config_item:
             return None
 
-        logger.info(f"Validating {config_key} config: {config_item}")
+        logger.info(f"Validating {config_key} config.")
+
+        if resolved_yaml is not None:
+            yaml_to_validate = resolved_yaml
+        elif config_key == "endpoints" and WEBHOOK_URL_PLACEHOLDER_RE.search(config_item):
+            logger.debug(
+                "Skipping validation for %s: contains unresolved secret placeholders",
+                config_key,
+            )
+            return None
+        else:
+            yaml_to_validate = config_item
 
         # First try to parse the YAML as a dictionary
         try:
-            config_dict = yaml.safe_load(config_item)
+            config_dict = yaml.safe_load(yaml_to_validate)
         except yaml.YAMLError as e:
             logger.error(e)
             return f"Failed to parse YAML based on {config_key}"
