@@ -72,7 +72,7 @@ def charm_resources(request: FixtureRequest) -> dict[str, str]:
 
     return {resource_name: rock_image_uri}
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def deployed_charm(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[str, str]):
     status = juju.status()
     if APP_NAME not in status.apps:
@@ -83,3 +83,5 @@ def deployed_charm(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: di
         unit = status.apps[APP_NAME].units[APP_NAME + "/0"]
         # Check that the charm hooks are successful
         assert unit.is_active
+
+        yield charm
