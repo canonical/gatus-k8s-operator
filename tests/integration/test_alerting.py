@@ -31,6 +31,7 @@ def test_mattermost_alerting(deployed_charm: pathlib.Path, juju: jubilant.Juju):
     assert secreturi.startswith("secret:")
 
     # Grant secret to charm and update the charm config
+    logger.info("Granting secret %s to charm", secreturi)
     juju.grant_secret(
         identifier=secreturi,
         app=APP_NAME,
@@ -75,6 +76,7 @@ def test_endpoints_provider_override_webhook(deployed_charm: pathlib.Path, juju:
     assert secreturi is not None
     assert secreturi.startswith("secret:")
 
+    logger.info("Granting secret %s to charm", secreturi)
     juju.grant_secret(identifier=secreturi, app=APP_NAME)
     secret_id = secreturi[len("secret:") :]
     juju.config(APP_NAME, {"mattermost-alerting": secret_id})

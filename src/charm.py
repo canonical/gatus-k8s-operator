@@ -10,7 +10,7 @@ import typing
 import ops
 import paas_charm.go
 from ops.framework import EventBase
-from ops.model import ActiveStatus, BlockedStatus, Container, ModelError, SecretNotFoundError
+from ops.model import ActiveStatus, BlockedStatus, Container, ModelError, SecretNotFoundError, WaitingStatus
 from ops.pebble import LayerDict
 
 from constants import (
@@ -20,7 +20,7 @@ from constants import (
     SERVICE_NAME,
     WEBHOOK_URL_PLACEHOLDER_RE,
 )
-from exceptions import BlockedStatusError
+from exceptions import BlockedStatusError, SecretAccessPendingError
 from validator import GatusValidator
 
 logger = logging.getLogger(__name__)
@@ -73,6 +73,11 @@ class GatusCharm(paas_charm.go.Charm):
         # Update environment variables based on config
         try:
             self._update_env(container)
+        except SecretAccessPendingError as e:
+            logger.info("Secret access not ready yet: %s", e)
+            self.unit.status = WaitingStatus(str(e))
+            event.defer()
+            return
         except BlockedStatusError as e:
             logger.error("Failed to update environment variables: %s", e)
             self.unit.status = BlockedStatus(FAILED_TO_UPDATE_ENVIRONMENT)
@@ -119,16 +124,9 @@ class GatusCharm(paas_charm.go.Charm):
             secret = self.model.get_secret(id=secret_id)
             return secret.get_content(refresh=True)
         except SecretNotFoundError:
-            logger.error("Secret '%s' not found.", secret_id)
-            return None
+            raise SecretAccessPendingError(f"Waiting for Juju secret '{secret_id}' to become available")
         except ModelError as e:
-            logger.error(
-                "Permission denied accessing secret '%s': %s. Run juju grant-secret",
-                secret_id,
-                str(e),
-            )
-            raise BlockedStatusError(f"Permission denied accessing secret '{secret_id}': {str(e)}")
-            return None
+            raise SecretAccessPendingError(f"Waiting for access to Juju secret '{secret_id}': {str(e)}")
 
     def _resolve_secret_placeholders(self, raw_yaml: str, secret_content: dict[str, str]) -> str | None:
         """Replace [webhook-url:channel-name] placeholders with values from the secret content dict.
