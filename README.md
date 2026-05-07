@@ -88,6 +88,9 @@ The charm will automatically configure Gatus to use the OIDC provider.
 
 Optionally, a list of authorized users can be added via the `oidc-allowed-subjects` config.
 
+The full setup of an OIDC authentication flow is out of scope for this README.
+For more information about the Canonical Identity Platform, see relevant [documentation](https://canonical-identity.readthedocs-hosted.com/reference/canonical-identity-platform-architecture/).
+
 ## Development and testing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
