@@ -84,4 +84,4 @@ def deployed_charm(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: di
         # Check that the charm hooks are successful
         assert unit.is_active
 
-        yield charm
+    yield charm
