@@ -168,13 +168,11 @@ class GatusCharm(paas_charm.go.Charm):
         """
         logger.info("Getting default webhook URL from secret")
         alerting_secret = self._get_juju_secret_content(MATTERMOST_ALERTING_CONFIG)
-        logger.info("Alerting secret: %s", alerting_secret)
         if not alerting_secret:
             return None
         logger.info("Alerting secret exists")
 
         default_webhook_url = alerting_secret.get("default")
-        logger.info("Default webhook URL: %s", default_webhook_url)
         if not default_webhook_url:
             raise BlockedStatusError(f"Secret does not contain a 'default' key in {MATTERMOST_ALERTING_CONFIG}")
         # This is the default Mattermost webhook URL set in the `alerting` config
@@ -191,7 +189,6 @@ class GatusCharm(paas_charm.go.Charm):
 
         """
         endpoints = str(self.model.config.get("endpoints", ""))
-        logger.info("Endpoints config: %s", endpoints)
         if not endpoints:
             logger.info("No endpoints config set, using default")
             return None
@@ -236,7 +233,6 @@ class GatusCharm(paas_charm.go.Charm):
         logger.info("Starting to update environment variables.")
 
         env["MATTERMOST_WEBHOOK_URL"] = self._get_default_webhook_url()
-        logger.info("Mattermost webhook URL: %s", env["MATTERMOST_WEBHOOK_URL"])
         env["APP_ENDPOINTS"] = self._get_endpoints()
 
         log_level = str(self.model.config["log-level"])
@@ -277,17 +273,12 @@ class GatusCharm(paas_charm.go.Charm):
         logger.debug("Found oauth relation: %s", oauth_relation)
         if oauth_relation and oauth_relation.app:
             app_data = oauth_relation.data[oauth_relation.app]
-            logger.debug("Found oauth relation: %s", app_data)
-
             if "client_id" in app_data:
                 oidc_env["APP_OAUTH_CLIENT_ID"] = app_data["client_id"]
                 oidc_env["APP_OAUTH_API_BASE_URL"] = app_data["issuer_url"]
-                logger.debug("Found oauth client id: %s", app_data["client_id"])
-                logger.debug("Found oauth issuer url: %s", app_data["issuer_url"])
 
             # 3. Resolve the secret
             secret_id = app_data.get("client_secret_id")
-            logger.debug("Found oauth client secret id: %s", secret_id)
             if secret_id:
                 secret = self.model.get_secret(id=secret_id)
                 oidc_env["APP_OAUTH_CLIENT_SECRET"] = secret.get_content().get("secret", "")
