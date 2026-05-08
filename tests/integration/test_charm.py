@@ -9,11 +9,9 @@ import pathlib
 
 import jubilant
 import requests
-import yaml
-from pydantic import ValidationError
 
 from constants import FAILED_TO_UPDATE_ENVIRONMENT, FAILED_TO_VALIDATE
-from gatus import GatusConfig
+from tests.integration.helper import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -47,127 +45,6 @@ def test_deploy(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[
     assert any(endpoint.get("name") == "Ubuntu.com" for endpoint in data)
 
 
-def test_db_relation(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[str, str]):
-    """Deploy the database charm and check that the gatus charm can connect to it.
-
-    This test uses an OCI image from a registry as the charm resource.
-    Thus, please ensure the --gatus-image option is set in the pytest command.
-    """
-    # Deploy the database charm
-    juju.deploy(
-        PG_APP_NAME,
-        channel="14/stable",
-    )
-    # Deploy the self-signed-certificates charm
-    juju.deploy(
-        SELF_SIGNED_CERT_APP_NAME,
-        channel="1/stable",
-    )
-    juju.wait(jubilant.all_active, timeout=900, delay=30)
-
-    # Add the charm relations
-    juju.integrate(f"{PG_APP_NAME}:certificates", f"{SELF_SIGNED_CERT_APP_NAME}:certificates")
-    juju.wait(jubilant.all_active, timeout=600, delay=30)
-    juju.integrate(APP_NAME, PG_APP_NAME)
-    juju.wait(jubilant.all_active, timeout=600, delay=30)
-
-    # Check that the charms resolve after the relations
-    status = juju.status()
-    assert status.apps[APP_NAME].units[APP_NAME + "/0"].is_active
-
-    # Get the config of the gatus charm
-    config = get_config(juju)
-
-    assert config.storage is not None, "config.storage is None"
-    assert config.storage.type == "postgres"
-    assert "postgresql-k8s-primary" in config.storage.path
-
-
-def test_mattermost_alerting(juju: jubilant.Juju):
-    """Add a secret to the charm and check that the alerting config is updated."""
-    # Add a secret to the Juju model
-    secreturi = juju.add_secret(
-        name="gatus-webhooks",
-        content={
-            "default": "http://localhost:8080/hooks/xxx",
-        },
-    )
-    assert secreturi is not None, "secreturi is None"
-    assert secreturi.startswith("secret:")
-
-    # Grant secret to charm and update the charm config
-    juju.grant_secret(
-        identifier=secreturi,
-        app=APP_NAME,
-    )
-    secret_id = secreturi[len("secret:") :]
-    juju.config(APP_NAME, {"mattermost-alerting": secret_id})
-    juju.wait(jubilant.all_active, timeout=300, delay=10)
-
-    # Get the config of the gatus charm
-    config = get_config(juju)
-
-    assert config.alerting is not None, "config.alerting is None"
-    assert config.alerting.mattermost is not None, "config.alerting.mattermost is None"
-    assert config.alerting.mattermost.webhook_url == "http://localhost:8080/hooks/xxx"
-
-    # Test that the charm reacts to updates to the secret
-    juju.update_secret(
-        identifier=secreturi,
-        content={
-            "default": "http://localhost:8080/hooks/yyy",
-        },
-    )
-    juju.wait(jubilant.all_active, timeout=300, delay=10)
-
-    # Get the config of the gatus charm
-    config = get_config(juju)
-
-    assert config.alerting is not None, "after update, config.alerting is None"
-    assert config.alerting.mattermost is not None, "after update, config.alerting.mattermost is None"
-    assert config.alerting.mattermost.webhook_url == "http://localhost:8080/hooks/yyy"
-
-
-def test_endpoints_provider_override_webhook(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[str, str]):
-    """Resolve provider-override webhook placeholders in endpoints config."""
-    status = juju.status()
-    if APP_NAME not in status.apps:
-        juju.deploy(charm.resolve(), app=APP_NAME, resources=charm_resources)
-        juju.wait(jubilant.all_active, timeout=300, delay=10)
-
-    secreturi = juju.add_secret(
-        name="gatus-webhooks-provider-override",
-        content={
-            "default": "http://localhost:8080/hooks/default",
-            "channel-1": "http://localhost:8080/hooks/channel-1",
-        },
-    )
-    assert secreturi is not None
-    assert secreturi.startswith("secret:")
-
-    juju.grant_secret(identifier=secreturi, app=APP_NAME)
-    secret_id = secreturi[len("secret:") :]
-    juju.config(APP_NAME, {"mattermost-alerting": secret_id})
-
-    with open("tests/data/endpoints-with-provider-override.yaml", "r") as f:
-        endpoints_string = f.read()
-    juju.config(APP_NAME, {"endpoints": endpoints_string})
-    juju.wait(jubilant.all_active, timeout=300, delay=10)
-
-    resolved_endpoints = juju.ssh(
-        target=APP_NAME + "/0",
-        container="app",
-        command="cat /config/endpoints.yaml",
-    )
-    logger.info("Resolved endpoints config: %s", resolved_endpoints)
-
-    assert "[webhook-url:channel-1]" not in resolved_endpoints
-
-    endpoints = yaml.safe_load(resolved_endpoints)
-    webhook_url = endpoints["endpoints"][0]["alerts"][0]["provider-override"]["webhook-url"]
-    assert webhook_url == "http://localhost:8080/hooks/channel-1"
-
-
 def test_invalid_endpoints_config(juju: jubilant.Juju):
     """Test that the endpoint config is correctly parsed."""
     with open("tests/data/endpoints-invalid.yaml", "r") as f:
@@ -184,7 +61,7 @@ def test_invalid_endpoints_config(juju: jubilant.Juju):
     assert workload_status.message == FAILED_TO_UPDATE_ENVIRONMENT
 
 
-def test_endpoints_config(juju: jubilant.Juju):
+def test_endpoints_config(deployed_charm: pathlib.Path, juju: jubilant.Juju):
     """Test that the endpoint config is correctly parsed."""
     with open("tests/data/endpoints.yaml", "r") as f:
         endpoints_string = f.read()
@@ -218,7 +95,7 @@ def test_endpoints_config(juju: jubilant.Juju):
     assert any(endpoint.get("name") == "GitHub" for endpoint in data)
 
 
-def test_announcements_config(juju: jubilant.Juju):
+def test_announcements_config(deployed_charm: pathlib.Path, juju: jubilant.Juju):
     """Test that the announcements config is correctly parsed."""
     with open("tests/data/announcements.yaml", "r") as f:
         announcements_string = f.read()
@@ -253,57 +130,3 @@ def test_invalid_announcements_config(juju: jubilant.Juju):
     assert workload_status.message in (FAILED_TO_VALIDATE, FAILED_TO_UPDATE_ENVIRONMENT)
 
 
-def get_config(juju: jubilant.Juju) -> GatusConfig:
-    """Get the config of a charmed application."""
-    pebble_plan = juju.ssh(
-        target=APP_NAME + "/0",
-        container="app",
-        command="pebble plan",
-    )
-    logger.info("Pebble plan: %s", pebble_plan)
-
-    config_files = juju.ssh(
-        target=APP_NAME + "/0",
-        container="app",
-        command="ls /config",
-    )
-    logger.info("Config files in container: %s", config_files)
-
-    configs = []
-    config_files = [
-        "storage",
-        "alerting",
-        "announcements",
-        "endpoints",
-    ]
-    # Retrieve the config files from the container
-    for config_file in config_files:
-        config_path = f"/config/{config_file}.yaml"
-        try:
-            config_string = juju.ssh(
-                target=APP_NAME + "/0",
-                container="app",
-                command=f"cat {config_path}",
-            )
-            logger.info("%s config: %s", config_file, config_string)
-            configs.append(config_string)
-        except jubilant.CLIError:
-            # Skip the config if it doesn't exist
-            logger.info("%s config not found", config_file)
-
-    config_string = "\n".join(configs)
-
-    try:
-        config = yaml.safe_load(config_string)
-        gatus_config: GatusConfig = GatusConfig.model_validate(config)
-
-        logger.info("Gatus application config:")
-        logger.info(config)
-
-        return gatus_config
-    except yaml.YAMLError as e:
-        logger.error(f"Failed to parse yaml: {e}")
-        raise
-    except ValidationError as e:
-        logger.error(f"Failed to validate yaml: {e}")
-        raise

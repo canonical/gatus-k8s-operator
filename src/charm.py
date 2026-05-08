@@ -10,7 +10,7 @@ import typing
 import ops
 import paas_charm.go
 from ops.framework import EventBase
-from ops.model import ActiveStatus, BlockedStatus, Container, ModelError, SecretNotFoundError
+from ops.model import ActiveStatus, BlockedStatus, Container, ModelError, SecretNotFoundError, WaitingStatus
 from ops.pebble import LayerDict
 
 from constants import (
@@ -20,7 +20,7 @@ from constants import (
     SERVICE_NAME,
     WEBHOOK_URL_PLACEHOLDER_RE,
 )
-from exceptions import BlockedStatusError
+from exceptions import BlockedStatusError, SecretAccessPendingError
 from validator import GatusValidator
 
 logger = logging.getLogger(__name__)
@@ -73,6 +73,11 @@ class GatusCharm(paas_charm.go.Charm):
         # Update environment variables based on config
         try:
             self._update_env(container)
+        except SecretAccessPendingError as e:
+            logger.info("Secret access not ready yet: %s", e)
+            self.unit.status = WaitingStatus(str(e))
+            event.defer()
+            return
         except BlockedStatusError as e:
             logger.error("Failed to update environment variables: %s", e)
             self.unit.status = BlockedStatus(FAILED_TO_UPDATE_ENVIRONMENT)
@@ -119,16 +124,9 @@ class GatusCharm(paas_charm.go.Charm):
             secret = self.model.get_secret(id=secret_id)
             return secret.get_content(refresh=True)
         except SecretNotFoundError:
-            logger.error("Secret '%s' not found.", secret_id)
-            return None
+            raise SecretAccessPendingError(f"Waiting for Juju secret '{secret_id}' to become available")
         except ModelError as e:
-            logger.error(
-                "Permission denied accessing secret '%s': %s. Run juju grant-secret",
-                secret_id,
-                str(e),
-            )
-            raise BlockedStatusError(f"Permission denied accessing secret '{secret_id}': {str(e)}")
-            return None
+            raise SecretAccessPendingError(f"Waiting for access to Juju secret '{secret_id}': {str(e)}")
 
     def _resolve_secret_placeholders(self, raw_yaml: str, secret_content: dict[str, str]) -> str | None:
         """Replace [webhook-url:channel-name] placeholders with values from the secret content dict.
@@ -170,13 +168,11 @@ class GatusCharm(paas_charm.go.Charm):
         """
         logger.info("Getting default webhook URL from secret")
         alerting_secret = self._get_juju_secret_content(MATTERMOST_ALERTING_CONFIG)
-        logger.info("Alerting secret: %s", alerting_secret)
         if not alerting_secret:
             return None
         logger.info("Alerting secret exists")
 
         default_webhook_url = alerting_secret.get("default")
-        logger.info("Default webhook URL: %s", default_webhook_url)
         if not default_webhook_url:
             raise BlockedStatusError(f"Secret does not contain a 'default' key in {MATTERMOST_ALERTING_CONFIG}")
         # This is the default Mattermost webhook URL set in the `alerting` config
@@ -193,7 +189,6 @@ class GatusCharm(paas_charm.go.Charm):
 
         """
         endpoints = str(self.model.config.get("endpoints", ""))
-        logger.info("Endpoints config: %s", endpoints)
         if not endpoints:
             logger.info("No endpoints config set, using default")
             return None
@@ -238,7 +233,6 @@ class GatusCharm(paas_charm.go.Charm):
         logger.info("Starting to update environment variables.")
 
         env["MATTERMOST_WEBHOOK_URL"] = self._get_default_webhook_url()
-        logger.info("Mattermost webhook URL: %s", env["MATTERMOST_WEBHOOK_URL"])
         env["APP_ENDPOINTS"] = self._get_endpoints()
 
         log_level = str(self.model.config["log-level"])
@@ -246,6 +240,10 @@ class GatusCharm(paas_charm.go.Charm):
             env["GATUS_LOG_LEVEL"] = log_level.upper()
         else:
             logger.warn("Invalid log level: %s", log_level)
+
+        oidc_env = self._get_oidc_env()
+        if oidc_env:
+            env.update(oidc_env)
 
         env_layer = LayerDict(
             {
@@ -261,6 +259,31 @@ class GatusCharm(paas_charm.go.Charm):
         container.add_layer("go-env-layer", env_layer, combine=True)
         container.replan()
         logger.info("Environment variables updated successfully. Check pebble plan.")
+
+    def _get_oidc_env(self) -> dict[str, str]:
+        """Get OIDC environment variables.
+
+        Returns:
+            A dictionary of OIDC environment variables.
+
+        """
+        oidc_env = {}
+
+        oauth_relation = self.model.get_relation("oidc")
+        logger.debug("Found oauth relation: %s", oauth_relation)
+        if oauth_relation and oauth_relation.app:
+            app_data = oauth_relation.data[oauth_relation.app]
+            if "client_id" in app_data:
+                oidc_env["APP_OAUTH_CLIENT_ID"] = app_data["client_id"]
+                oidc_env["APP_OAUTH_API_BASE_URL"] = app_data["issuer_url"]
+
+            # 3. Resolve the secret
+            secret_id = app_data.get("client_secret_id")
+            if secret_id:
+                secret = self.model.get_secret(id=secret_id)
+                oidc_env["APP_OAUTH_CLIENT_SECRET"] = secret.get_content().get("secret", "")
+
+        return oidc_env
 
 
 if __name__ == "__main__":  # pragma: nocover

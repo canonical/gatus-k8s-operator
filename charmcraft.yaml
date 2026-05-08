@@ -68,6 +68,28 @@ config:
         Whether to use an insecure connection to Mattermost.
       type: boolean
       default: false
+    oidc-redirect-path:
+      description: |
+        The callback path that Gatus listens on for the OAuth/OIDC redirect.
+        This must match the path registered with your identity provider.
+        Gatus uses /authorization-code/callback by default. Generally,
+        you should not need to change this.
+      type: string
+      default: "/authorization-code/callback"
+    oidc-scopes:
+      description: |
+        Space-separated list of OIDC scopes to request from the identity provider.
+        The openid scope is mandatory and must always be included. Generally,
+        you should not need to change this.
+      type: string
+      default: "openid"
+    oidc-allowed-subjects:
+      description: |
+        Optional comma-separated list of subject identifiers (e.g. email addresses)
+        that are allowed to access the Gatus dashboard after authenticating via the
+        oauth relation. If empty, all authenticated users are allowed.
+      type: string
+      default: ""
     ui-header:
       description: |
         The header text to display in the Gatus UI.
@@ -112,5 +134,9 @@ config:
 requires:
   postgresql:
     interface: postgresql_client
+    optional: true
+    limit: 1
+  oidc:
+    interface: oauth
     optional: true
     limit: 1

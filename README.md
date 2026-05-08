@@ -55,6 +55,13 @@ after the channels you want to send alerts to (e.g. `channel-name: "https://your
 Then, these keys need to be mentioned in the endpoint configuration, as follows:
 
 ```yaml
+# mattermost-alerting-secret.yaml
+default: "https://your.mattermost.instance/hooks/yourwebhookid"
+channel-name: "https://your.mattermost.instance/hooks/yourwebhookid"
+```
+
+```yaml
+# endpoints.yaml
 endpoints:
   # ... Existing endpoints
   - name: "" # User-facing name
@@ -67,6 +74,22 @@ endpoints:
 ```
 
 The charm will automatically replace the `[webhook-url:channel-name]` placeholders with the actual webhook URLs.
+
+### 4. OIDC authentication
+
+The charm supports OIDC authentication via a relation to a charm offering the `oauth` interface, such as [hydra](https://charmhub.io/hydra).
+
+```sh
+juju deploy hydra
+juju relate gatus-k8s hydra
+```
+
+The charm will automatically configure Gatus to use the OIDC provider.
+
+Optionally, a list of authorized users can be added via the `oidc-allowed-subjects` config.
+
+The full setup of an OIDC authentication flow is out of scope for this README.
+For more information about the Canonical Identity Platform, see relevant [documentation](https://canonical-identity.readthedocs-hosted.com/reference/canonical-identity-platform-architecture/).
 
 ## Development and testing
 

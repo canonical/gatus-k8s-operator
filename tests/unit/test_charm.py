@@ -11,7 +11,7 @@ from unittest.mock import Mock
 
 import pytest
 import yaml
-from ops.model import ActiveStatus, BlockedStatus, ConfigData
+from ops.model import ActiveStatus, BlockedStatus, ConfigData, ModelError, SecretNotFoundError, WaitingStatus
 from pydantic import ValidationError
 
 from charm import GatusCharm
@@ -22,7 +22,7 @@ from constants import (
     SERVICE_NAME,
     WEBHOOK_URL_PLACEHOLDER_RE,
 )
-from exceptions import BlockedStatusError
+from exceptions import BlockedStatusError, SecretAccessPendingError
 from gatus import EndpointAlert, GatusConfig, ProviderOverride
 from validator import GatusValidator
 
@@ -235,6 +235,7 @@ def test_update_env_resolves_endpoint_placeholders_into_container_env():
     charm._get_endpoints = Mock(
         return_value=endpoints.replace("[webhook-url:channel-1]", "https://chat.example.com/hooks/trino")
     )
+    charm._get_oidc_env = Mock(return_value=None)
 
     container = Mock()
 
@@ -280,6 +281,56 @@ def test_update_env_blocks_when_placeholder_key_missing_from_secret():
     assert str(exc_info.value) == "Failed to resolve secret placeholders in endpoints config."
     container.add_layer.assert_not_called()
     container.replan.assert_not_called()
+
+
+def test_update_defers_when_secret_access_is_pending():
+    """Test that _update defers reconciliation while Juju secret access propagates."""
+    container = Mock()
+    container.can_connect.return_value = True
+    event = Mock()
+
+    charm = SimpleNamespace(
+        unit=SimpleNamespace(
+            get_container=Mock(return_value=container),
+            status=ActiveStatus(),
+        ),
+        _update_env=Mock(side_effect=SecretAccessPendingError("Waiting for Juju secret 'secret:123' to become available")),
+        restart=Mock(),
+    )
+
+    GatusCharm._update(cast(GatusCharm, charm), event)
+
+    assert charm.unit.status == WaitingStatus("Waiting for Juju secret 'secret:123' to become available")
+    event.defer.assert_called_once_with()
+    charm.restart.assert_not_called()
+
+
+def test_get_juju_secret_content_raises_pending_when_secret_not_found():
+    """Test that missing Juju secrets are treated as pending to survive grant propagation lag."""
+    charm = SimpleNamespace(
+        model=SimpleNamespace(
+            config={"mattermost-alerting": "secret:123"},
+            get_secret=Mock(side_effect=SecretNotFoundError("secret:123")),
+        )
+    )
+
+    with pytest.raises(SecretAccessPendingError, match="Waiting for Juju secret 'secret:123' to become available"):
+        GatusCharm._get_juju_secret_content(cast(GatusCharm, charm), "mattermost-alerting")
+
+
+def test_get_juju_secret_content_raises_pending_when_secret_access_denied():
+    """Test that temporary Juju secret permission failures are retried instead of dropped."""
+    secret = Mock()
+    secret.get_content.side_effect = ModelError("permission denied")
+    charm = SimpleNamespace(
+        model=SimpleNamespace(
+            config={"mattermost-alerting": "secret:123"},
+            get_secret=Mock(return_value=secret),
+        )
+    )
+
+    with pytest.raises(SecretAccessPendingError, match="Waiting for access to Juju secret 'secret:123': permission denied"):
+        GatusCharm._get_juju_secret_content(cast(GatusCharm, charm), "mattermost-alerting")
 
 
 def test_validator_skips_endpoints_with_placeholders():

@@ -9,7 +9,12 @@ import yaml
 from ops.model import ActiveStatus, BlockedStatus, ConfigData, StatusBase
 from pydantic import ValidationError
 
-from constants import FAILED_TO_VALIDATE, INVALID_FILTER_BY_MESSAGE, INVALID_SORT_BY_MESSAGE, WEBHOOK_URL_PLACEHOLDER_RE
+from constants import (
+    FAILED_TO_VALIDATE,
+    INVALID_FILTER_BY_MESSAGE,
+    INVALID_SORT_BY_MESSAGE,
+    WEBHOOK_URL_PLACEHOLDER_RE,
+)
 from gatus import GatusConfig
 
 logger = logging.getLogger(__name__)

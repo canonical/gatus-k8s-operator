@@ -11,7 +11,8 @@ requires-python = "==3.12.*"
 # dependencies of any charmlibs that the charm uses (copy the dependencies from PYDEPS).
 dependencies = [
     "ops>=3.0.0,<3.1.0",
-    "paas-charm>=1.9.0,<1.10.0",
+    # "paas-charm>=1.9.0,<1.10.0",
+    "paas-charm>=1.11.2",
 ]
 
 [dependency-groups]
@@ -50,6 +51,7 @@ show_missing = true
 [tool.pytest.ini_options]
 minversion = "6.0"
 log_cli_level = "INFO"
+pythonpath = ["."]
 
 # Linting tools configuration
 [tool.ruff]

@@ -9,6 +9,7 @@ CONFIG_DIR="/config"
 UI_FILE="${CONFIG_DIR}/ui.yaml"
 STORAGE_FILE="${CONFIG_DIR}/storage.yaml"
 ALERTS_FILE="${CONFIG_DIR}/alerting.yaml"
+SECURITY_FILE="${CONFIG_DIR}/security.yaml"
 ANNOUNCEMENTS_FILE="${CONFIG_DIR}/announcements.yaml"
 ENDPOINTS_FILE="${CONFIG_DIR}/endpoints.yaml"
 
@@ -80,6 +81,45 @@ endpoints:
     conditions:
       - "[STATUS] == 200"
 EOF
+fi
+
+# If the oauth relation is established, configure OIDC authentication
+if [[ -n "${APP_OIDC_CLIENT_ID:-}" && -n "${APP_OIDC_CLIENT_SECRET:-}" && -n "${APP_OIDC_API_BASE_URL:-}" && -n "${APP_BASE_URL:-}" ]]; then
+	echo "Configuring OIDC authentication via OAuth relation"
+
+	REDIRECT_PATH="${APP_OIDC_REDIRECT_PATH:-/authorization-code/callback}"
+	REDIRECT_URI="${APP_BASE_URL%/}/${REDIRECT_PATH#/}"
+
+	cat > "$SECURITY_FILE" <<EOF
+security:
+  oidc:
+    issuer-url: ${APP_OIDC_API_BASE_URL}
+    redirect-url: ${REDIRECT_URI}
+    client-id: ${APP_OIDC_CLIENT_ID}
+    client-secret: ${APP_OIDC_CLIENT_SECRET}
+    scopes:
+EOF
+
+	# Append scopes as a YAML list (space-separated per oauth relation convention)
+	read -ra SCOPES <<< "${APP_OIDC_SCOPES:-openid}"
+	if [[ ${#SCOPES[@]} -eq 0 ]]; then
+		SCOPES=("openid")
+	fi
+	for scope in "${SCOPES[@]}"; do
+		echo "      - ${scope}" >> "$SECURITY_FILE"
+	done
+
+	# Optionally restrict to specific subjects
+	if [[ -n "${APP_OIDC_ALLOWED_SUBJECTS:-}" ]]; then
+		echo "    allowed-subjects:" >> "$SECURITY_FILE"
+		IFS=',' read -ra SUBJECTS <<< "$APP_OIDC_ALLOWED_SUBJECTS"
+		for subject in "${SUBJECTS[@]}"; do
+			echo "      - ${subject}" >> "$SECURITY_FILE"
+		done
+	fi
+else
+	echo "OAuth not configured, skipping OIDC security"
+	rm -f "$SECURITY_FILE"
 fi
 
 export GATUS_CONFIG_PATH=$CONFIG_DIR
