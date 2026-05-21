@@ -12,5 +12,6 @@ jobs:
       contents: write
       pull-requests: write
     with:
-     runs-on: ubuntu-20.04
+     runs-on: ubuntu-24.04
+     self-hosted-runner: false
      with-uv: true

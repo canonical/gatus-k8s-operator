@@ -23,7 +23,7 @@ jobs:
       modules: '["test_charm.py", "test_database.py", "test_alerting.py"]'
       juju-channel: 3.6/stable
       # self-hosted-runner: false
-      runs-on: ubuntu-20.04
+      runs-on: ubuntu-24.04
       microk8s-addons: "ingress registry"
       trivy-severity-config: CRITICAL
       with-uv: true
