@@ -1,4 +1,4 @@
-# Copyright 2025 Canonical Ltd.
+# Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
 
 """# Interface Library for OpenFGA.
@@ -54,10 +54,15 @@ class SomeCharm(CharmBase):
         logger.info("http_api_url {}".format(info.http_api_url))
 
 ```
+
+The OpenFGA charm will attempt to use Juju secrets to pass the token
+to the requiring charm. However, if the Juju version does not support secrets it will
+fall back to passing plaintext token via relation data.
 """
 
+import json
 import logging
-from typing import Optional
+from typing import Dict, MutableMapping, Optional, Union
 
 import pydantic
 from ops import (
@@ -73,6 +78,7 @@ from ops import (
 from ops.charm import CharmEvents, RelationChangedEvent, RelationEvent
 from ops.framework import EventSource, Object
 from pydantic import BaseModel, Field
+from typing_extensions import Self
 
 # The unique Charmhub library identifier, never change it
 LIBID = "216f28cfeea4447b8a576f01bfbecdf5"
@@ -82,16 +88,17 @@ LIBAPI = 1
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 5
+LIBPATCH = 4
 
 PYDEPS = ["pydantic ~= 2.0"]
 
 logger = logging.getLogger(__name__)
 
+BUILTIN_JUJU_KEYS = {"ingress-address", "private-address", "egress-subnets"}
 DEFAULT_INTEGRATION_NAME = "openfga"
 
 
-def _update_relation_app_databag(app: Application, relation: Relation, data: dict) -> None:
+def _update_relation_app_databag(app: Application, relation: Relation, data: Dict) -> None:
     if relation is None:
         return
 
@@ -99,20 +106,45 @@ def _update_relation_app_databag(app: Application, relation: Relation, data: dic
     relation.data[app].update(data)
 
 
-class OpenfgaRequirerAppData(BaseModel):
+class OpenfgaError(RuntimeError):
+    """Base class for custom errors raised by this library."""
+
+
+class DataValidationError(OpenfgaError):
+    """Raised when data validation fails on relation data."""
+
+
+class DatabagModel(BaseModel):
+    """Base databag model."""
+
+    @classmethod
+    def _load_value(cls, v: str) -> Union[Dict, str]:
+        try:
+            return json.loads(v)
+        except json.JSONDecodeError:
+            return v
+
+    @classmethod
+    def load(cls, databag: MutableMapping) -> Self:
+        """Load this model from a Juju databag."""
+        try:
+            data = {
+                k: cls._load_value(v) for k, v in databag.items() if k not in BUILTIN_JUJU_KEYS
+            }
+        except json.JSONDecodeError:
+            logger.error(f"invalid databag contents: expecting json. {databag}")
+            raise
+
+        return cls.model_validate_json(json.dumps(data))
+
+
+class OpenfgaRequirerAppData(DatabagModel):
     """Openfga requirer application databag model."""
 
     store_name: str = Field(description="The store name the application requires")
 
 
-class OpenfgaProviderBaseData(BaseModel):
-    """Openfga provider base application databag model."""
-
-    grpc_api_url: str = Field(description="The openfga server GRPC address")
-    http_api_url: str = Field(description="The openfga server HTTP address")
-
-
-class OpenfgaProviderAppData(OpenfgaProviderBaseData):
+class OpenfgaProviderAppData(DatabagModel):
     """Openfga requirer application databag model."""
 
     store_id: Optional[str] = Field(description="The store_id", default=None)
@@ -121,6 +153,8 @@ class OpenfgaProviderAppData(OpenfgaProviderBaseData):
         description="The juju secret_id which can be used to retrieve the API token",
         default=None,
     )
+    grpc_api_url: str = Field(description="The openfga server GRPC address")
+    http_api_url: str = Field(description="The openfga server HTTP address")
 
 
 class OpenFGAStoreCreateEvent(HookEvent):
@@ -130,13 +164,13 @@ class OpenFGAStoreCreateEvent(HookEvent):
         super().__init__(handle)
         self.store_id = store_id
 
-    def snapshot(self) -> dict:
+    def snapshot(self) -> Dict:
         """Save event."""
         return {
             "store_id": self.store_id,
         }
 
-    def restore(self, snapshot: dict) -> None:
+    def restore(self, snapshot: Dict) -> None:
         """Restore event."""
         self.store_id = snapshot["store_id"]
 
@@ -200,7 +234,7 @@ class OpenFGARequires(Object):
 
         databag = event.relation.data[app]
         try:
-            data = OpenfgaProviderAppData.model_validate(databag)
+            data = OpenfgaProviderAppData.load(databag)
         except pydantic.ValidationError:
             return
 
@@ -229,7 +263,7 @@ class OpenFGARequires(Object):
 
         databag = relation.data[relation.app]
         try:
-            data = OpenfgaProviderAppData.model_validate(databag)
+            data = OpenfgaProviderAppData.load(databag)
         except pydantic.ValidationError:
             return None
 
@@ -248,13 +282,13 @@ class OpenFGAStoreRequestEvent(RelationEvent):
         super().__init__(handle, relation)
         self.store_name = store_name
 
-    def snapshot(self) -> dict:
+    def snapshot(self) -> Dict:
         """Save event."""
         dct = super().snapshot()
         dct["store_name"] = self.store_name
         return dct
 
-    def restore(self, snapshot: dict) -> None:
+    def restore(self, snapshot: Dict) -> None:
         """Restore event."""
         super().restore(snapshot)
         self.store_name = snapshot["store_name"]
@@ -296,17 +330,35 @@ class OpenFGAProvider(Object):
         if not (app := event.app):
             return
 
-        if not (data := event.relation.data[app]):
+        data = event.relation.data[app]
+        if not data:
+            logger.info("No relation data available.")
             return
 
         try:
-            data = OpenfgaRequirerAppData.model_validate(data)
+            data = OpenfgaRequirerAppData.load(data)
         except pydantic.ValidationError:
             return
 
         self.on.openfga_store_requested.emit(event.relation, store_name=data.store_name)
 
-    def update_relation_app_data(self, data: OpenfgaProviderAppData, relation_id: int) -> None:
+    def _get_http_url(self, relation: Relation) -> str:
+        address = self.model.get_binding(relation).network.ingress_address.exploded
+        return f"{self.scheme}://{address}:{self.http_port}"
+
+    def _get_grpc_url(self, relation: Relation) -> str:
+        address = self.model.get_binding(relation).network.ingress_address.exploded
+        return f"{self.scheme}://{address}:{self.grpc_port}"
+
+    def update_relation_info(
+        self,
+        store_id: str,
+        token_secret_id: str,
+        grpc_api_url: Optional[str] = None,
+        http_api_url: Optional[str] = None,
+        relation_id: Optional[int] = None,
+    ) -> None:
+        """Update a relation databag."""
         if not self.model.unit.is_leader():
             return
 
@@ -314,35 +366,39 @@ class OpenFGAProvider(Object):
         if not relation or not relation.app:
             return
 
-        if data.token_secret_id:
-            try:
-                secret = self.model.get_secret(id=data.token_secret_id)
-            except Exception as e:
-                logger.error("Failed to get secret %s: %s", data.token_secret_id, e)
-                return
+        if not grpc_api_url:
+            grpc_api_url = self._get_grpc_url(relation=relation)
+        if not http_api_url:
+            http_api_url = self._get_http_url(relation=relation)
 
-            secret.grant(relation)
+        provider_data = OpenfgaProviderAppData(
+            store_id=store_id,
+            grpc_api_url=grpc_api_url,
+            http_api_url=http_api_url,
+            token_secret_id=token_secret_id,
+        )
 
         _update_relation_app_databag(
             self.app,
             relation,
-            data.model_dump(),
+            provider_data.model_dump(),
         )
 
-    def update_relations_app_data(self, data: OpenfgaProviderBaseData) -> None:
+    def update_server_info(
+        self, grpc_api_url: Optional[str] = None, http_api_url: Optional[str] = None
+    ) -> None:
+        """Update all the relations databag with the server info."""
         if not self.model.unit.is_leader():
             return
 
-        if not (relations := self.charm.model.relations.get(self.relation_name)):
-            return
-
-        for relation in relations:
+        for relation in self.model.relations[self.relation_name]:
             relation_data = relation.data[self.app]
+
             provider_data = OpenfgaProviderAppData(
                 store_id=relation_data.get("store_id"),
                 token_secret_id=relation_data.get("token_secret_id"),
-                grpc_api_url=data.grpc_api_url,
-                http_api_url=data.http_api_url,
+                grpc_api_url=grpc_api_url or self._get_grpc_url(relation),
+                http_api_url=http_api_url or self._get_http_url(relation),
             )
 
             _update_relation_app_databag(
