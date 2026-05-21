@@ -7,9 +7,8 @@ import textwrap
 from pathlib import Path
 
 import pytest
-import yaml
-
 import render_config as rc
+import yaml
 
 TEMPLATES_DIR = Path(__file__).parent.parent.parent / "gatus_rock" / "templates"
 
@@ -197,7 +196,7 @@ def test_endpoints_yaml_raw_passthrough_when_set(tmp_path):
 
 _OIDC_BASE = {
     "APP_OIDC_CLIENT_ID": "client-123",
-    "APP_OIDC_CLIENT_SECRET": "secret-abc",
+    "APP_OIDC_CLIENT_SECRET": "secret-abc",  # nosec B105
     "APP_OIDC_API_BASE_URL": "https://hydra.example.com",
     "APP_BASE_URL": "https://gatus.example.com",
 }

@@ -294,7 +294,9 @@ def test_update_defers_when_secret_access_is_pending():
             get_container=Mock(return_value=container),
             status=ActiveStatus(),
         ),
-        _update_env=Mock(side_effect=SecretAccessPendingError("Waiting for Juju secret 'secret:123' to become available")),
+        _update_env=Mock(
+            side_effect=SecretAccessPendingError("Waiting for Juju secret 'secret:123' to become available")
+        ),
         restart=Mock(),
     )
 
@@ -329,7 +331,9 @@ def test_get_juju_secret_content_raises_pending_when_secret_access_denied():
         )
     )
 
-    with pytest.raises(SecretAccessPendingError, match="Waiting for access to Juju secret 'secret:123': permission denied"):
+    with pytest.raises(
+        SecretAccessPendingError, match="Waiting for access to Juju secret 'secret:123': permission denied"
+    ):
         GatusCharm._get_juju_secret_content(cast(GatusCharm, charm), "mattermost-alerting")
 
 

@@ -15,6 +15,7 @@ APP_NAME = "gatus-k8s"
 PG_APP_NAME = "postgresql-k8s"
 SELF_SIGNED_CERT_APP_NAME = "self-signed-certificates"
 
+
 def test_db_relation(deployed_charm: pathlib.Path, juju: jubilant.Juju):
     """Deploy the database charm and check that the gatus charm can connect to it.
 
@@ -49,4 +50,3 @@ def test_db_relation(deployed_charm: pathlib.Path, juju: jubilant.Juju):
     assert config.storage is not None, "config.storage is None"
     assert config.storage.type == "postgres"
     assert "postgresql-k8s-primary" in config.storage.path
-

@@ -74,6 +74,7 @@ skip = "build,lib,venv,icon.svg,.tox,.git,.mypy_cache,.ruff_cache,.coverage"
 
 [tool.pyright]
 include = ["src", "tests"]
+extraPaths = ["gatus_rock"]
 
 [tool.bandit]
 exclude_dirs = ["/venv/"]
