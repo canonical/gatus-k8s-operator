@@ -64,7 +64,11 @@ parts:
   copy-files:
     plugin: dump
     source: .
+    stage-packages:
+      - python3-jinja2
     organize:
       gatus_wrapper.sh: gatus/gatus_wrapper.sh
+      render_config.py: gatus/render_config.py
+      templates: gatus/templates
     stage:
       - gatus

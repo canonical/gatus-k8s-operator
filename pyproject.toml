@@ -25,6 +25,7 @@ lint = [
 # Dependencies of unit tests
 unit = [
     "coverage[toml]",
+    "jinja2",
     "ops[testing]",
     "paas-charm>=1.9.1",
     "pytest",
@@ -51,7 +52,7 @@ show_missing = true
 [tool.pytest.ini_options]
 minversion = "6.0"
 log_cli_level = "INFO"
-pythonpath = ["."]
+pythonpath = [".", "gatus_rock"]
 
 # Linting tools configuration
 [tool.ruff]

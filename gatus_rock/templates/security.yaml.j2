@@ -1,0 +1,16 @@
+security:
+  oidc:
+    issuer-url: {{ issuer_url }}
+    redirect-url: {{ redirect_url }}
+    client-id: {{ client_id }}
+    client-secret: {{ client_secret }}
+    scopes:
+{% for scope in scopes %}
+      - {{ scope }}
+{% endfor %}
+{% if allowed_subjects %}
+    allowed-subjects:
+{% for subject in allowed_subjects %}
+      - {{ subject }}
+{% endfor %}
+{% endif %}
