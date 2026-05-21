@@ -106,8 +106,6 @@ def render_configs(config_dir: Path, templates_dir: Path, env: dict) -> None:
         write(config_dir / "endpoints.yaml", render("endpoints.yaml.j2", {}))
 
     # Security (OIDC) — created only when the full required env set is present.
-    # NOTE: charm.py sets APP_OAUTH_* but this script reads APP_OIDC_*.
-    # This is a pre-existing mismatch: OIDC is currently never activated in practice.
     client_id = env.get("APP_OIDC_CLIENT_ID", "")
     client_secret = env.get("APP_OIDC_CLIENT_SECRET", "")
     api_base_url = env.get("APP_OIDC_API_BASE_URL", "")
