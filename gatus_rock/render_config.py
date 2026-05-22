@@ -4,13 +4,15 @@
 
 """Render Gatus configuration files from Jinja2 templates."""
 
+import logging
 import os
-import sys
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
+
+logger = logging.getLogger(__name__)
 
 
 def render_configs(config_dir: Path, templates_dir: Path, env: dict) -> None:
@@ -69,7 +71,7 @@ def render_configs(config_dir: Path, templates_dir: Path, env: dict) -> None:
             render("storage.yaml.j2", {"db_connect_string": db_connect_string}),
         )
     else:
-        print("POSTGRESQL_DB_CONNECT_STRING is not set", file=sys.stderr)
+        logger.info("POSTGRESQL_DB_CONNECT_STRING is not set")
         remove(config_dir / "storage.yaml")
 
     # Alerting — created only when MATTERMOST_WEBHOOK_URL is set.
@@ -86,7 +88,7 @@ def render_configs(config_dir: Path, templates_dir: Path, env: dict) -> None:
             ),
         )
     else:
-        print("MATTERMOST_WEBHOOK_URL is not set", file=sys.stderr)
+        logger.info("MATTERMOST_WEBHOOK_URL is not set")
         remove(config_dir / "alerting.yaml")
 
     # Announcements — raw pass-through; created only when APP_ANNOUNCEMENTS is set.
@@ -94,13 +96,13 @@ def render_configs(config_dir: Path, templates_dir: Path, env: dict) -> None:
     if announcements:
         write(config_dir / "announcements.yaml", announcements)
     else:
-        print("APP_ANNOUNCEMENTS is not set", file=sys.stderr)
+        logger.info("APP_ANNOUNCEMENTS is not set")
         remove(config_dir / "announcements.yaml")
 
     # Endpoints — raw pass-through when APP_ENDPOINTS is set; default sample otherwise.
     endpoints = env.get("APP_ENDPOINTS", "")
     if endpoints:
-        print("Using endpoints from config", file=sys.stderr)
+        logger.info("Using endpoints from config")
         write(config_dir / "endpoints.yaml", endpoints)
     else:
         write(config_dir / "endpoints.yaml", render("endpoints.yaml.j2", {}))
@@ -112,7 +114,7 @@ def render_configs(config_dir: Path, templates_dir: Path, env: dict) -> None:
     base_url = env.get("APP_BASE_URL", "")
 
     if client_id and client_secret and api_base_url and base_url:
-        print("Configuring OIDC authentication via OAuth relation", file=sys.stderr)
+        logger.info("Configuring OIDC authentication via OAuth relation")
         redirect_path = env.get("APP_OIDC_REDIRECT_PATH", "/authorization-code/callback")
         redirect_url = base_url.rstrip("/") + "/" + redirect_path.lstrip("/")
 
@@ -137,12 +139,13 @@ def render_configs(config_dir: Path, templates_dir: Path, env: dict) -> None:
             ),
         )
     else:
-        print("OAuth not configured, skipping OIDC security", file=sys.stderr)
+        logger.info("OAuth not configured, skipping OIDC security")
         remove(config_dir / "security.yaml")
 
 
 def main() -> None:
     """Entry point: render configs from real environment into /config."""
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     render_configs(
         config_dir=Path("/config"),
         templates_dir=_TEMPLATES_DIR,

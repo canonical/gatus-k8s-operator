@@ -72,3 +72,6 @@ parts:
       templates: gatus/templates
     stage:
       - gatus
+      - usr/bin/python3*
+      - usr/lib/python3*
+      - usr/lib/x86_64-linux-gnu/libpython3*
