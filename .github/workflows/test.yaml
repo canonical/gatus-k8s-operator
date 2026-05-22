@@ -9,8 +9,7 @@ jobs:
     uses: canonical/operator-workflows/.github/workflows/test.yaml@main
     secrets: inherit
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
     with:
      self-hosted-runner: false
      with-uv: true

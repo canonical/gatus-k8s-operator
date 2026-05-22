@@ -13,8 +13,7 @@ jobs:
     uses: canonical/operator-workflows/.github/workflows/publish_charm.yaml@main
     secrets: inherit
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
     with:
       channel: latest/edge
       # Map the 'gatus' resource built by Rockcraft and published to GHCR
