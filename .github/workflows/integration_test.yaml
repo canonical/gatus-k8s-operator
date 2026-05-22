@@ -16,7 +16,8 @@ jobs:
     uses: canonical/operator-workflows/.github/workflows/integration_test.yaml@main
     secrets: inherit
     permissions:
-      contents: write
+      contents: read
+      packages: write
     with:
       channel: 1.34-strict/stable
       modules: '["test_charm.py", "test_database.py", "test_alerting.py"]'
