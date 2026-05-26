@@ -128,5 +128,3 @@ def test_invalid_announcements_config(juju: jubilant.Juju):
     workload_status = status.apps[APP_NAME].units[APP_NAME + "/0"].workload_status
     assert workload_status.current == "blocked"
     assert workload_status.message in (FAILED_TO_VALIDATE, FAILED_TO_UPDATE_ENVIRONMENT)
-
-

@@ -304,6 +304,7 @@ static = [
 ]
 unit = [
     { name = "coverage" },
+    { name = "jinja2" },
     { name = "ops", extra = ["testing"] },
     { name = "paas-charm" },
     { name = "pytest" },
@@ -331,6 +332,7 @@ lint = [
 static = [{ name = "bandit", extras = ["toml"] }]
 unit = [
     { name = "coverage", extras = ["toml"] },
+    { name = "jinja2" },
     { name = "ops", extras = ["testing"] },
     { name = "paas-charm", specifier = ">=1.9.1" },
     { name = "pytest" },
