@@ -9,16 +9,11 @@ import typing
 
 import ops
 import paas_charm.go
+from ops.model import ActiveStatus, ModelError, SecretNotFoundError
 from paas_charm.app import App
-from ops.framework import EventBase
-from ops.model import ActiveStatus, BlockedStatus, Container, ModelError, SecretNotFoundError, WaitingStatus
-from ops.pebble import LayerDict
 
 from constants import (
-    CONTAINER_NAME,
-    FAILED_TO_UPDATE_ENVIRONMENT,
     MATTERMOST_ALERTING_CONFIG,
-    SERVICE_NAME,
     WEBHOOK_URL_PLACEHOLDER_RE,
 )
 from exceptions import BlockedStatusError, SecretAccessPendingError
@@ -39,9 +34,9 @@ class GatusCharm(paas_charm.go.Charm):
         """
         super().__init__(*args)
 
-        self.framework.observe(self.on.app_pebble_ready, self._update)
-        self.framework.observe(self.on.config_changed, self._update)
-        self.framework.observe(self.on.secret_changed, self._update)
+        # self.framework.observe(self.on.app_pebble_ready, self._update)
+        # self.framework.observe(self.on.config_changed, self._update)
+        # self.framework.observe(self.on.secret_changed, self._update)
 
         self.unit.status = GatusValidator.validate(self.model.config)
 
@@ -295,8 +290,8 @@ class GatusCharm(paas_charm.go.Charm):
         def custom_gen_environment(*args, **kwargs) -> dict[str, str]:
             env = original_gen_environment(*args, **kwargs)
 
-            env["MATTERMOST_WEBHOOK_URL"] = self._get_default_webhook_url()
-            env["APP_ENDPOINTS"] = self._get_endpoints()
+            env["MATTERMOST_WEBHOOK_URL"] = self._get_default_webhook_url() or ""
+            env["APP_ENDPOINTS"] = self._get_endpoints() or ""
 
             log_level = str(self.model.config["log-level"])
             if log_level.lower() in ["info", "debug", "warn", "error", "fatal"]:
