@@ -208,18 +208,33 @@ class GatusCharm(paas_charm.go.Charm):
             """Customize environment variables."""
             env = original_gen_environment(*args, **kwargs)
 
-            # Set the default Mattermost webhook URL
-            env["MATTERMOST_WEBHOOK_URL"] = self._get_default_webhook_url() or ""
-            # Process the endpoints config, resolving placeholders
-            env["APP_ENDPOINTS"] = self._get_endpoints() or ""
-            # Set the Gatus application log level
-            log_level = str(self.model.config["log-level"])
-            if log_level.lower() in ["info", "debug", "warn", "error", "fatal"]:
-                env["GATUS_LOG_LEVEL"] = log_level.upper()
-            # Set the OIDC environment variables
-            oidc_env = self._get_oidc_env()
-            if oidc_env:
-                env.update(oidc_env)
+            try:
+                webhook_url = self._get_default_webhook_url()
+                endpoints = self._get_endpoints()
+
+                # Set the default Mattermost webhook URL
+                env["MATTERMOST_WEBHOOK_URL"] = webhook_url or ""
+                # Process the endpoints config, resolving placeholders
+                env["APP_ENDPOINTS"] = endpoints or ""
+
+                # Set the Gatus application log level
+                log_level = str(self.model.config["log-level"])
+                if log_level.lower() in ["info", "debug", "warn", "error", "fatal"]:
+                    env["GATUS_LOG_LEVEL"] = log_level.upper()
+
+                # Set the OIDC environment variables
+                oidc_env = self._get_oidc_env()
+                if oidc_env:
+                    env.update(oidc_env)
+
+                # Recompute status with the resolved endpoints (if any)
+                self.unit.status = GatusValidator.validate(self.model.config, endpoints=endpoints)
+            except SecretAccessPendingError as e:
+                logger.info("Secret access not ready yet: %s", e)
+                self.unit.status = ops.model.WaitingStatus(str(e))
+            except BlockedStatusError as e:
+                logger.error("Failed to build environment variables: %s", e)
+                self.unit.status = ops.model.BlockedStatus(str(e))
 
             return env
 
