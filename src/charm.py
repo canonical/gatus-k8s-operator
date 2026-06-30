@@ -9,6 +9,7 @@ import typing
 
 import ops
 import paas_charm.go
+from paas_charm.app import App
 from ops.framework import EventBase
 from ops.model import ActiveStatus, BlockedStatus, Container, ModelError, SecretNotFoundError, WaitingStatus
 from ops.pebble import LayerDict
@@ -54,36 +55,36 @@ class GatusCharm(paas_charm.go.Charm):
 
         super().restart(rerun_migrations)
 
-    def _update(self, event: EventBase):
-        """Update the application configuration when relevant.
-
-        Args:
-            event: The event that triggered the method.
-
-        """
-        logger.info("Updating config")
-
-        # Get the application container
-        container = self.unit.get_container(CONTAINER_NAME)
-        if not container.can_connect():
-            logger.info("Pebble is not ready yet, deferring config update")
-            event.defer()
-            return
-
-        # Update environment variables based on config
-        try:
-            self._update_env(container)
-        except SecretAccessPendingError as e:
-            logger.info("Secret access not ready yet: %s", e)
-            self.unit.status = WaitingStatus(str(e))
-            event.defer()
-            return
-        except BlockedStatusError as e:
-            logger.error("Failed to update environment variables: %s", e)
-            self.unit.status = BlockedStatus(FAILED_TO_UPDATE_ENVIRONMENT)
-            return
-
-        self.restart()
+    # def _update(self, event: EventBase):
+    #     """Update the application configuration when relevant.
+    #
+    #     Args:
+    #         event: The event that triggered the method.
+    #
+    #     """
+    #     logger.info("Updating config")
+    #
+    #     # Get the application container
+    #     container = self.unit.get_container(CONTAINER_NAME)
+    #     if not container.can_connect():
+    #         logger.info("Pebble is not ready yet, deferring config update")
+    #         event.defer()
+    #         return
+    #
+    #     # Update environment variables based on config
+    #     try:
+    #         self._update_env(container)
+    #     except SecretAccessPendingError as e:
+    #         logger.info("Secret access not ready yet: %s", e)
+    #         self.unit.status = WaitingStatus(str(e))
+    #         event.defer()
+    #         return
+    #     except BlockedStatusError as e:
+    #         logger.error("Failed to update environment variables: %s", e)
+    #         self.unit.status = BlockedStatus(FAILED_TO_UPDATE_ENVIRONMENT)
+    #         return
+    #
+    #     self.restart()
 
     def _get_juju_secret(self, config_name: str, secret_key: str) -> str | None:
         """Get Juju secret contents based on the charm config.
@@ -213,53 +214,6 @@ class GatusCharm(paas_charm.go.Charm):
 
         return endpoints
 
-    def _update_env(self, container: Container):
-        """Create a pebble layer to add environment variables to the container.
-
-        This is necessary for handling Juju secrets and resolving secret placeholders
-        in the endpoints config.
-
-        Args:
-            container: The container in which to inject the environment variables.
-
-        Returns:
-            True if the update was successful, False if the charm was put into BlockedStatus.
-
-        Raises:
-            BlockedStatusError: If necessary conditions were not met.
-
-        """
-        env = {}
-        logger.info("Starting to update environment variables.")
-
-        env["MATTERMOST_WEBHOOK_URL"] = self._get_default_webhook_url()
-        env["APP_ENDPOINTS"] = self._get_endpoints()
-
-        log_level = str(self.model.config["log-level"])
-        if log_level.lower() in ["info", "debug", "warn", "error", "fatal"]:
-            env["GATUS_LOG_LEVEL"] = log_level.upper()
-        else:
-            logger.warn("Invalid log level: %s", log_level)
-
-        oidc_env = self._get_oidc_env()
-        if oidc_env:
-            env.update(oidc_env)
-
-        env_layer = LayerDict(
-            {
-                "services": {
-                    SERVICE_NAME: {
-                        "override": "merge",
-                        "environment": env,
-                    }
-                }
-            }
-        )
-
-        container.add_layer("go-env-layer", env_layer, combine=True)
-        container.replan()
-        logger.info("Environment variables updated successfully. Check pebble plan.")
-
     def _get_oidc_env(self) -> dict[str, str]:
         """Get OIDC environment variables.
 
@@ -284,6 +238,78 @@ class GatusCharm(paas_charm.go.Charm):
                 oidc_env["APP_OAUTH_CLIENT_SECRET"] = secret.get_content().get("secret", "")
 
         return oidc_env
+
+    # def _update_env(self, container: Container):
+    #     """Create a pebble layer to add environment variables to the container.
+    #
+    #     This is necessary for handling Juju secrets and resolving secret placeholders
+    #     in the endpoints config.
+    #
+    #     Args:
+    #         container: The container in which to inject the environment variables.
+    #
+    #     Returns:
+    #         True if the update was successful, False if the charm was put into BlockedStatus.
+    #
+    #     Raises:
+    #         BlockedStatusError: If necessary conditions were not met.
+    #
+    #     """
+    #     env = {}
+    #     logger.info("Starting to update environment variables.")
+    #
+    #     env["MATTERMOST_WEBHOOK_URL"] = self._get_default_webhook_url()
+    #     env["APP_ENDPOINTS"] = self._get_endpoints()
+    #
+    #     log_level = str(self.model.config["log-level"])
+    #     if log_level.lower() in ["info", "debug", "warn", "error", "fatal"]:
+    #         env["GATUS_LOG_LEVEL"] = log_level.upper()
+    #     else:
+    #         logger.warn("Invalid log level: %s", log_level)
+    #
+    #     oidc_env = self._get_oidc_env()
+    #     if oidc_env:
+    #         env.update(oidc_env)
+    #
+    #     env_layer = LayerDict(
+    #         {
+    #             "services": {
+    #                 SERVICE_NAME: {
+    #                     "override": "merge",
+    #                     "environment": env,
+    #                 }
+    #             }
+    #         }
+    #     )
+    #
+    #     container.add_layer("go-env-layer", env_layer, combine=True)
+    #     container.replan()
+    #     logger.info("Environment variables updated successfully. Check pebble plan.")
+
+    def _create_app(self) -> App:
+        """Build an App instance and inject dynamic environment variables."""
+        app = super()._create_app()
+        logger.info("Intercepted Go App creation for environment lifecycle.")
+        original_gen_environment = app.gen_environment
+
+        def custom_gen_environment(*args, **kwargs) -> dict[str, str]:
+            env = original_gen_environment(*args, **kwargs)
+
+            env["MATTERMOST_WEBHOOK_URL"] = self._get_default_webhook_url()
+            env["APP_ENDPOINTS"] = self._get_endpoints()
+
+            log_level = str(self.model.config["log-level"])
+            if log_level.lower() in ["info", "debug", "warn", "error", "fatal"]:
+                env["GATUS_LOG_LEVEL"] = log_level.upper()
+
+            oidc_env = self._get_oidc_env()
+            if oidc_env:
+                env.update(oidc_env)
+
+            return env
+
+        app.gen_environment = custom_gen_environment
+        return app
 
 
 if __name__ == "__main__":  # pragma: nocover
