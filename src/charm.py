@@ -207,22 +207,20 @@ class GatusCharm(paas_charm.go.Charm):
 
         """
         if self._alerting_secret and not self._default_webhook_url:
-            logger.warning("Alerting secret exists but default webhook URL is not set")
             self.update_app_and_unit_status(BlockedStatus("Secret exists but 'default' webhook URL is not set"))
             return False
 
         alerting_secret = self._get_juju_secret_content(MATTERMOST_ALERTING_CONFIG)
         has_placeholders = bool(WEBHOOK_URL_PLACEHOLDER_RE.search(self._endpoints_config))
-        if has_placeholders and not alerting_secret:
-            self.update_app_and_unit_status(
-                BlockedStatus(
-                    "Endpoints config contains secret placeholders but '{MATTERMOST_ALERTING_CONFIG}' is not configured"
-                )
-            )
-            return False
+        endpoints = None
 
-        if has_placeholders and alerting_secret:
-            # Resolve the endpoints config by replacing [webhook-url:channel-name] placeholders
+        if has_placeholders:
+            if not alerting_secret:
+                self.update_app_and_unit_status(
+                    BlockedStatus("Endpoints config contains placeholders but alerting secret is not configured.")
+                )
+                return False
+
             endpoints = self._resolve_secret_placeholders(self._endpoints_config, alerting_secret)
             if endpoints is None:
                 self.update_app_and_unit_status(
@@ -230,13 +228,7 @@ class GatusCharm(paas_charm.go.Charm):
                 )
                 return False
 
-            status = GatusValidator.validate(self.model.config, endpoints=endpoints)
-            if status != ActiveStatus():
-                logger.warning(f"Config invalid, preventing restart: {status.message}")
-                self.update_app_and_unit_status(status)
-                return False
-
-        status = GatusValidator.validate(self.model.config)
+        status = GatusValidator.validate(self.model.config, endpoints=endpoints)
         if status != ActiveStatus():
             logger.warning(f"Config invalid, preventing restart: {status.message}")
             self.update_app_and_unit_status(status)

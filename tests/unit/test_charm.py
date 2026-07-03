@@ -337,11 +337,7 @@ def test_create_app_injects_mattermost_webhook_url():
             "endpoints": "endpoints:\n  - name: Test",
         },
         get_secret=Mock(
-            return_value=Mock(
-                get_content=Mock(
-                    return_value={"default": "https://chat.example.com/hooks/abc123"}
-                )
-            )
+            return_value=Mock(get_content=Mock(return_value={"default": "https://chat.example.com/hooks/abc123"}))
         ),
     )
     mock_charm._get_juju_secret_content = lambda config_name: (
