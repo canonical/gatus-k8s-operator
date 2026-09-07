@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 APP_NAME = "gatus-k8s"
 
+
 @pytest.fixture(scope="module")
 def juju(request: FixtureRequest):
     """Create a temporary Juju model for running tests."""
@@ -71,6 +72,7 @@ def charm_resources(request: FixtureRequest) -> dict[str, str]:
         )
 
     return {resource_name: rock_image_uri}
+
 
 @pytest.fixture(scope="module")
 def deployed_charm(charm: pathlib.Path, juju: jubilant.Juju, charm_resources: dict[str, str]):

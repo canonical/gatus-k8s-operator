@@ -7,11 +7,12 @@ import logging
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from typing import cast
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
+import paas_charm.go
 import pytest
 import yaml
-from ops.model import ActiveStatus, BlockedStatus, ConfigData, ModelError, SecretNotFoundError, WaitingStatus
+from ops.model import ActiveStatus, BlockedStatus, ConfigData, ModelError, SecretNotFoundError
 from pydantic import ValidationError
 
 from charm import GatusCharm
@@ -19,10 +20,9 @@ from constants import (
     FAILED_TO_VALIDATE,
     INVALID_FILTER_BY_MESSAGE,
     INVALID_SORT_BY_MESSAGE,
-    SERVICE_NAME,
     WEBHOOK_URL_PLACEHOLDER_RE,
 )
-from exceptions import BlockedStatusError, SecretAccessPendingError
+from exceptions import SecretAccessPendingError
 from gatus import EndpointAlert, GatusConfig, ProviderOverride
 from validator import GatusValidator
 
@@ -213,98 +213,6 @@ def test_resolve_secret_placeholders_multiple_keys():
     assert "[webhook-url:" not in resolved
 
 
-def test_update_env_resolves_endpoint_placeholders_into_container_env():
-    """Test that _update_env resolves placeholders and injects the resolved endpoints."""
-    with open("tests/data/endpoints-with-provider-override.yaml", "r") as f:
-        endpoints = f.read()
-    charm = SimpleNamespace(
-        model=SimpleNamespace(
-            config=cast(
-                ConfigData,
-                {
-                    "ui-default-sort-by": "name",
-                    "ui-default-filter-by": "none",
-                    "log-level": "info",
-                    "endpoints": endpoints,
-                },
-            )
-        ),
-        unit=SimpleNamespace(status=ActiveStatus()),
-    )
-    charm._get_default_webhook_url = Mock(return_value="https://chat.example.com/hooks/default")
-    charm._get_endpoints = Mock(
-        return_value=endpoints.replace("[webhook-url:channel-1]", "https://chat.example.com/hooks/trino")
-    )
-    charm._get_oidc_env = Mock(return_value=None)
-
-    container = Mock()
-
-    GatusCharm._update_env(cast(GatusCharm, charm), container)
-
-    layer = container.add_layer.call_args.args[1]
-    env = layer["services"][SERVICE_NAME]["environment"]
-    assert env["MATTERMOST_WEBHOOK_URL"] == "https://chat.example.com/hooks/default"
-    assert env["APP_ENDPOINTS"] == endpoints.replace("[webhook-url:channel-1]", "https://chat.example.com/hooks/trino")
-    assert env["GATUS_LOG_LEVEL"] == "INFO"
-    container.replan.assert_called_once_with()
-
-
-def test_update_env_blocks_when_placeholder_key_missing_from_secret():
-    """Test that _update_env blocks when an endpoint references a missing secret key."""
-    with open("tests/data/endpoints-with-provider-override.yaml", "r") as f:
-        endpoints = f.read()
-
-    charm = SimpleNamespace(
-        model=SimpleNamespace(
-            config=cast(
-                ConfigData,
-                {
-                    "ui-default-sort-by": "name",
-                    "ui-default-filter-by": "none",
-                    "log-level": "info",
-                    "endpoints": endpoints,
-                },
-            )
-        ),
-        unit=SimpleNamespace(status=ActiveStatus()),
-    )
-    charm._get_default_webhook_url = Mock(return_value="https://chat.example.com/hooks/default")
-    charm._get_endpoints = Mock(
-        side_effect=BlockedStatusError("Failed to resolve secret placeholders in endpoints config.")
-    )
-
-    container = Mock()
-
-    with pytest.raises(BlockedStatusError) as exc_info:
-        GatusCharm._update_env(cast(GatusCharm, charm), container)
-
-    assert str(exc_info.value) == "Failed to resolve secret placeholders in endpoints config."
-    container.add_layer.assert_not_called()
-    container.replan.assert_not_called()
-
-
-def test_update_defers_when_secret_access_is_pending():
-    """Test that _update defers reconciliation while Juju secret access propagates."""
-    container = Mock()
-    container.can_connect.return_value = True
-    event = Mock()
-
-    charm = SimpleNamespace(
-        unit=SimpleNamespace(
-            get_container=Mock(return_value=container),
-            status=ActiveStatus(),
-        ),
-        _update_env=Mock(side_effect=SecretAccessPendingError("Waiting for Juju secret 'secret:123' to become available")),
-        restart=Mock(),
-    )
-
-    GatusCharm._update(cast(GatusCharm, charm), event)
-
-    assert charm.unit.status == WaitingStatus("Waiting for Juju secret 'secret:123' to become available")
-    event.defer.assert_called_once_with()
-    charm.restart.assert_not_called()
-
-
 def test_get_juju_secret_content_raises_pending_when_secret_not_found():
     """Test that missing Juju secrets are treated as pending to survive grant propagation lag."""
     charm = SimpleNamespace(
@@ -329,7 +237,9 @@ def test_get_juju_secret_content_raises_pending_when_secret_access_denied():
         )
     )
 
-    with pytest.raises(SecretAccessPendingError, match="Waiting for access to Juju secret 'secret:123': permission denied"):
+    with pytest.raises(
+        SecretAccessPendingError, match="Waiting for access to Juju secret 'secret:123': permission denied"
+    ):
         GatusCharm._get_juju_secret_content(cast(GatusCharm, charm), "mattermost-alerting")
 
 
@@ -411,3 +321,84 @@ def test_validator_blocks_on_invalid_resolved_endpoints():
     status = GatusValidator.validate(config, endpoints=resolved_endpoints)
     assert isinstance(status, BlockedStatus)
     assert status.message == FAILED_TO_VALIDATE
+
+
+def test_create_app_injects_mattermost_webhook_url():
+    """Test that _create_app wraps gen_environment to inject the Mattermost webhook URL."""
+    original_gen_env = Mock(return_value={"EXISTING_VAR": "value"})
+    mock_app = Mock()
+    mock_app.gen_environment = original_gen_env
+
+    mock_charm = Mock(spec=GatusCharm)
+    mock_charm.model = SimpleNamespace(
+        config={
+            "log-level": "info",
+            "mattermost-alerting": "secret:123",
+            "endpoints": "endpoints:\n  - name: Test",
+        },
+        get_secret=Mock(
+            return_value=Mock(get_content=Mock(return_value={"default": "https://chat.example.com/hooks/abc123"}))
+        ),
+    )
+    mock_charm._get_juju_secret_content = lambda config_name: (
+        "https://chat.example.com/hooks/abc123" if config_name == "mattermost-alerting" else None
+    )
+    mock_charm._default_webhook_url = "https://chat.example.com/hooks/abc123"
+    mock_charm._get_endpoints = lambda: "endpoints:\n  - name: Test"
+
+    with patch.object(paas_charm.go.Charm, "_create_app", return_value=mock_app):
+        # Call the actual method on the mock charm
+        wrapped_app = GatusCharm._create_app(mock_charm)
+        env = wrapped_app.gen_environment()
+
+        assert env["MATTERMOST_WEBHOOK_URL"] == "https://chat.example.com/hooks/abc123"
+        assert env["EXISTING_VAR"] == "value"
+
+
+def test_create_app_injects_endpoints_config():
+    """Test that _create_app injects the endpoints config into environment."""
+    endpoints_yaml = "endpoints:\n  - name: Test\n    url: http://example.com"
+
+    mock_app = Mock()
+    mock_app.gen_environment = Mock(return_value={})
+
+    mock_charm = Mock(spec=GatusCharm)
+    mock_charm.model = SimpleNamespace(
+        config={
+            "log-level": "debug",
+            "endpoints": endpoints_yaml,
+        },
+        get_secret=Mock(return_value=None),
+    )
+    mock_charm._get_endpoints = lambda: endpoints_yaml
+    mock_charm._default_webhook_url = None
+
+    with patch.object(paas_charm.go.Charm, "_create_app", return_value=mock_app):
+        wrapped_app = GatusCharm._create_app(mock_charm)
+        env = wrapped_app.gen_environment()
+
+        assert env["APP_ENDPOINTS"] == endpoints_yaml
+        assert env["GATUS_LOG_LEVEL"] == "DEBUG"
+
+
+def test_create_app_injects_log_level():
+    """Test that _create_app injects valid log level into environment."""
+    mock_app = Mock()
+    mock_app.gen_environment = Mock(return_value={})
+
+    mock_charm = Mock(spec=GatusCharm)
+    mock_charm.model = SimpleNamespace(
+        config={
+            "log-level": "error",
+            "endpoints": "",
+        },
+        get_secret=Mock(return_value=None),
+    )
+    mock_charm._get_endpoints = lambda: ""
+    mock_charm._default_webhook_url = None
+
+    with patch.object(paas_charm.go.Charm, "_create_app", return_value=mock_app):
+        wrapped_app = GatusCharm._create_app(mock_charm)
+        env = wrapped_app.gen_environment()
+
+        assert env["GATUS_LOG_LEVEL"] == "ERROR"
