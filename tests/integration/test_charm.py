@@ -58,7 +58,7 @@ def test_invalid_endpoints_config(juju: jubilant.Juju):
     status = juju.status()
     workload_status = status.apps[APP_NAME].units[APP_NAME + "/0"].workload_status
     assert workload_status.current == "blocked"
-    assert workload_status.message == FAILED_TO_UPDATE_ENVIRONMENT
+    assert workload_status.message == FAILED_TO_VALIDATE
 
 
 def test_endpoints_config(deployed_charm: pathlib.Path, juju: jubilant.Juju):
@@ -128,5 +128,3 @@ def test_invalid_announcements_config(juju: jubilant.Juju):
     workload_status = status.apps[APP_NAME].units[APP_NAME + "/0"].workload_status
     assert workload_status.current == "blocked"
     assert workload_status.message in (FAILED_TO_VALIDATE, FAILED_TO_UPDATE_ENVIRONMENT)
-
-

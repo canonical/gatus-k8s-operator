@@ -71,6 +71,7 @@ def _wait_for_resolved_endpoint_webhook(
         f"'{expected_webhook_url}'. Last endpoints.yaml content:\n{last_endpoints}"
     )
 
+
 def test_mattermost_alerting(deployed_charm: pathlib.Path, juju: jubilant.Juju):
     """Add a secret to the charm and check that the alerting config is updated."""
     # Add a secret to the Juju model
@@ -141,9 +142,7 @@ def test_endpoints_provider_override_webhook(deployed_charm: pathlib.Path, juju:
     juju.config(APP_NAME, {"endpoints": endpoints_string})
     juju.wait(jubilant.all_active, timeout=300, delay=10)
 
-    resolved_endpoints = _wait_for_resolved_endpoint_webhook(
-        juju, "http://localhost:8080/hooks/channel-1"
-    )
+    resolved_endpoints = _wait_for_resolved_endpoint_webhook(juju, "http://localhost:8080/hooks/channel-1")
     logger.info("Resolved endpoints config: %s", resolved_endpoints)
 
     assert "[webhook-url:channel-1]" not in resolved_endpoints
@@ -151,5 +150,3 @@ def test_endpoints_provider_override_webhook(deployed_charm: pathlib.Path, juju:
     endpoints = yaml.safe_load(resolved_endpoints)
     webhook_url = endpoints["endpoints"][0]["alerts"][0]["provider-override"]["webhook-url"]
     assert webhook_url == "http://localhost:8080/hooks/channel-1"
-
-
