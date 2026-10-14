@@ -346,6 +346,7 @@ def test_create_app_injects_mattermost_webhook_url():
     )
     mock_charm._default_webhook_url = "https://chat.example.com/hooks/abc123"
     mock_charm._get_endpoints = lambda: "endpoints:\n  - name: Test"
+    mock_charm._database_monitor_targets = lambda: ([], [])
 
     with patch.object(paas_charm.go.Charm, "_create_app", return_value=mock_app):
         # Call the actual method on the mock charm
@@ -373,6 +374,7 @@ def test_create_app_injects_endpoints_config():
     )
     mock_charm._get_endpoints = lambda: endpoints_yaml
     mock_charm._default_webhook_url = None
+    mock_charm._database_monitor_targets = lambda: ([], [])
 
     with patch.object(paas_charm.go.Charm, "_create_app", return_value=mock_app):
         wrapped_app = GatusCharm._create_app(mock_charm)
@@ -397,6 +399,7 @@ def test_create_app_injects_log_level():
     )
     mock_charm._get_endpoints = lambda: ""
     mock_charm._default_webhook_url = None
+    mock_charm._database_monitor_targets = lambda: ([], [])
 
     with patch.object(paas_charm.go.Charm, "_create_app", return_value=mock_app):
         wrapped_app = GatusCharm._create_app(mock_charm)

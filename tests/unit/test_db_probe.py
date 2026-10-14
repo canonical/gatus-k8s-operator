@@ -7,7 +7,7 @@ import json
 import sys
 import threading
 from http.client import HTTPConnection
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock
 
 import db_probe
 
@@ -25,6 +25,7 @@ def test_check_database_executes_select_one(monkeypatch):
     cursor = Mock()
     cursor.fetchone.return_value = (1,)
     connection = Mock()
+    connection.cursor.return_value = MagicMock()
     connection.cursor.return_value.__enter__.return_value = cursor
     psycopg2 = Mock(connect=Mock(return_value=connection))
     monkeypatch.setitem(sys.modules, "psycopg2", psycopg2)
@@ -47,6 +48,7 @@ def test_check_database_returns_false_when_query_fails(monkeypatch):
     cursor = Mock()
     cursor.execute.side_effect = RuntimeError("query failed")
     connection = Mock()
+    connection.cursor.return_value = MagicMock()
     connection.cursor.return_value.__enter__.return_value = cursor
     psycopg2 = Mock(connect=Mock(return_value=connection))
     monkeypatch.setitem(sys.modules, "psycopg2", psycopg2)
