@@ -21,14 +21,10 @@ def check_database(target: Target) -> bool:
     try:
         import psycopg2
 
-        connection = psycopg2.connect(
-            host=target["host"],
-            port=target["port"],
-            dbname=target["dbname"],
-            user=target["user"],
-            ******"password"],
-            connect_timeout=3,
-        )
+        connection_parameters = {
+            key: target[key] for key in ("host", "port", "dbname", "user", "password")
+        }
+        connection = psycopg2.connect(**connection_parameters, connect_timeout=3)
         try:
             with connection.cursor() as cursor:
                 cursor.execute("SELECT 1")

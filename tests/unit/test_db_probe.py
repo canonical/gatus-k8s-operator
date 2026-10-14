@@ -30,14 +30,8 @@ def test_check_database_executes_select_one(monkeypatch):
     monkeypatch.setitem(sys.modules, "psycopg2", psycopg2)
 
     assert db_probe.check_database(TARGET)
-    psycopg2.connect.assert_called_once_with(
-        host=TARGET["host"],
-        port=TARGET["port"],
-        dbname=TARGET["dbname"],
-        user=TARGET["user"],
-        ******"password"],
-        connect_timeout=3,
-    )
+    connection_parameters = {key: TARGET[key] for key in ("host", "port", "dbname", "user", "password")}
+    psycopg2.connect.assert_called_once_with(**connection_parameters, connect_timeout=3)
     cursor.execute.assert_called_once_with("SELECT 1")
     connection.close.assert_called_once_with()
 
