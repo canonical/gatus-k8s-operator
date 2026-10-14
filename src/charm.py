@@ -17,6 +17,7 @@ from constants import (
     MATTERMOST_ALERTING_CONFIG,
     WEBHOOK_URL_PLACEHOLDER_RE,
 )
+from database_monitors import build_database_monitors
 from exceptions import SecretAccessPendingError
 from validator import GatusValidator
 
@@ -65,56 +66,7 @@ class GatusCharm(paas_charm.go.Charm):
             (relation_data[relation_id] for relation_id in relation_data if relation_id not in broken_relation_ids),
             {},
         )
-        if not all(data.get(field) for field in ("endpoints", "username", "password")):
-            return [], []
-
-        database_name = data.get("database") or self.app.name
-        monitors: list[dict[str, str]] = []
-        probe_targets: list[dict[str, str | int]] = []
-        seen: set[tuple[str, int]] = set()
-
-        for role, endpoint_list in (
-            ("Primary", data.get("endpoints") or ""),
-            ("Read-only replica", data.get("read-only-endpoints") or ""),
-        ):
-            for endpoint in endpoint_list.split(","):
-                endpoint = endpoint.strip()
-                if endpoint.startswith("["):
-                    host, separator, port = endpoint[1:].partition("]:")
-                else:
-                    host, separator, port = endpoint.rpartition(":")
-                if not separator or not host:
-                    logger.warning("Ignoring invalid PostgreSQL endpoint: %s", endpoint)
-                    continue
-                if ":" in host and not endpoint.startswith("["):
-                    logger.warning("Ignoring invalid PostgreSQL endpoint: %s", endpoint)
-                    continue
-
-                try:
-                    port_number = int(port)
-                except ValueError:
-                    logger.warning("Ignoring invalid PostgreSQL endpoint: %s", endpoint)
-                    continue
-
-                if not 1 <= port_number <= 65535 or (host, port_number) in seen:
-                    continue
-
-                seen.add((host, port_number))
-                target_id = str(len(probe_targets))
-                address = f"[{host}]:{port_number}" if ":" in host else f"{host}:{port_number}"
-                monitors.append({"id": target_id, "name": f"PostgreSQL {role} ({address})"})
-                probe_targets.append(
-                    {
-                        "id": target_id,
-                        "host": host,
-                        "port": port_number,
-                        "dbname": database_name,
-                        "user": data["username"],
-                        "password": data["password"],
-                    }
-                )
-
-        return monitors, probe_targets
+        return build_database_monitors(data, self.app.name)
 
     def _on_postgresql_read_only_endpoints_changed(self, _: ops.EventBase) -> None:
         """Refresh generated monitors when replica endpoints change."""

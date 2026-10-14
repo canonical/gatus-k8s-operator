@@ -24,6 +24,7 @@ from constants import (
     INVALID_SORT_BY_MESSAGE,
     WEBHOOK_URL_PLACEHOLDER_RE,
 )
+from database_monitors import build_database_monitors
 from exceptions import SecretAccessPendingError
 from gatus import EndpointAlert, GatusConfig, ProviderOverride
 from validator import GatusValidator
@@ -434,6 +435,22 @@ def test_database_monitor_targets_use_primary_and_replica_endpoints():
         "10.146.72.59",
     ]
     assert all(target["password"] == "hidden-password" for target in probe_targets)
+    assert "hidden-password" not in json.dumps(monitors)
+
+
+def test_database_monitor_builder_validates_ports_and_formats_ipv6():
+    relation = {
+        "endpoints": "[2001:db8::61]:5432,10.146.72.62:70000",
+        "read-only-endpoints": "",
+        "username": "gatus-user",
+        "password": "hidden-password",  # nosec B105
+    }
+
+    monitors, targets = build_database_monitors(relation, "gatus")
+
+    assert monitors == [{"id": "0", "name": "PostgreSQL Primary ([2001:db8::61]:5432)"}]
+    assert targets[0]["host"] == "2001:db8::61"
+    assert targets[0]["port"] == 5432
     assert "hidden-password" not in json.dumps(monitors)
 
 
