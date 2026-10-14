@@ -3,12 +3,14 @@
 #
 # To learn more about testing, see https://documentation.ubuntu.com/ops/latest/explanation/testing/
 
+import json
 import logging
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from typing import cast
 from unittest.mock import Mock, patch
 
+import ops
 import paas_charm.go
 import pytest
 import yaml
@@ -22,6 +24,7 @@ from constants import (
     INVALID_SORT_BY_MESSAGE,
     WEBHOOK_URL_PLACEHOLDER_RE,
 )
+from database_monitors import build_database_monitors
 from exceptions import SecretAccessPendingError
 from gatus import EndpointAlert, GatusConfig, ProviderOverride
 from validator import GatusValidator
@@ -345,6 +348,7 @@ def test_create_app_injects_mattermost_webhook_url():
     )
     mock_charm._default_webhook_url = "https://chat.example.com/hooks/abc123"
     mock_charm._get_endpoints = lambda: "endpoints:\n  - name: Test"
+    mock_charm._database_monitor_targets = lambda: ([], [])
 
     with patch.object(paas_charm.go.Charm, "_create_app", return_value=mock_app):
         # Call the actual method on the mock charm
@@ -372,6 +376,7 @@ def test_create_app_injects_endpoints_config():
     )
     mock_charm._get_endpoints = lambda: endpoints_yaml
     mock_charm._default_webhook_url = None
+    mock_charm._database_monitor_targets = lambda: ([], [])
 
     with patch.object(paas_charm.go.Charm, "_create_app", return_value=mock_app):
         wrapped_app = GatusCharm._create_app(mock_charm)
@@ -396,9 +401,120 @@ def test_create_app_injects_log_level():
     )
     mock_charm._get_endpoints = lambda: ""
     mock_charm._default_webhook_url = None
+    mock_charm._database_monitor_targets = lambda: ([], [])
 
     with patch.object(paas_charm.go.Charm, "_create_app", return_value=mock_app):
         wrapped_app = GatusCharm._create_app(mock_charm)
         env = wrapped_app.gen_environment()
 
         assert env["GATUS_LOG_LEVEL"] == "ERROR"
+
+
+def test_database_monitor_targets_use_primary_and_replica_endpoints():
+    relation = {
+        "database": "gatus",
+        "endpoints": "10.146.72.61:5432",
+        "read-only-endpoints": "10.146.72.55:5432,10.146.72.59:5432",
+        "username": "gatus-user",
+        "password": "hidden-password",  # nosec B105
+    }
+    database = Mock()
+    database.fetch_relation_data.return_value = {32: relation}
+    charm = SimpleNamespace(
+        _database_requirers={"postgresql": database},
+        _broken_postgresql_relation_ids=set(),
+        app=SimpleNamespace(name="gatus"),
+    )
+
+    monitors, probe_targets = GatusCharm._database_monitor_targets(cast(GatusCharm, charm))
+
+    assert len(monitors) == 3
+    assert [target["host"] for target in probe_targets] == [
+        "10.146.72.61",
+        "10.146.72.55",
+        "10.146.72.59",
+    ]
+    assert all(target["password"] == "hidden-password" for target in probe_targets)
+    assert "hidden-password" not in json.dumps(monitors)
+
+
+def test_database_monitor_builder_validates_ports_and_formats_ipv6():
+    relation = {
+        "endpoints": "[2001:db8::61]:5432,10.146.72.62:70000",
+        "read-only-endpoints": "",
+        "username": "gatus-user",
+        "password": "hidden-password",  # nosec B105
+    }
+
+    monitors, targets = build_database_monitors(relation, "gatus")
+
+    assert monitors == [{"id": "0", "name": "PostgreSQL Primary ([2001:db8::61]:5432)"}]
+    assert targets[0]["host"] == "2001:db8::61"
+    assert targets[0]["port"] == 5432
+    assert "hidden-password" not in json.dumps(monitors)
+
+
+def test_database_monitor_targets_refresh_when_relation_changes_or_is_removed():
+    database = Mock()
+    database.fetch_relation_data.return_value = {
+        32: {
+            "database": "gatus",
+            "endpoints": "10.146.72.61:5432",
+            "read-only-endpoints": "10.146.72.55:5432",
+            "username": "gatus-user",
+            "password": "hidden-password",  # nosec B105
+        }
+    }
+    charm = SimpleNamespace(
+        _database_requirers={"postgresql": database},
+        _broken_postgresql_relation_ids=set(),
+        app=SimpleNamespace(name="gatus"),
+    )
+
+    first_monitors, _ = GatusCharm._database_monitor_targets(cast(GatusCharm, charm))
+    database.fetch_relation_data.return_value = {
+        33: {
+            "database": "gatus",
+            "endpoints": "10.146.72.62:5432",
+            "read-only-endpoints": "10.146.72.56:5432",
+            "username": "gatus-user",
+            "password": "hidden-password",  # nosec B105
+        }
+    }
+    updated_monitors, _ = GatusCharm._database_monitor_targets(cast(GatusCharm, charm))
+    database.fetch_relation_data.return_value = {}
+    removed_monitors, removed_targets = GatusCharm._database_monitor_targets(cast(GatusCharm, charm))
+
+    assert "10.146.72.61" in first_monitors[0]["name"]
+    assert "10.146.72.62" in updated_monitors[0]["name"]
+    assert removed_monitors == []
+    assert removed_targets == []
+
+
+def test_database_relation_broken_clears_its_monitor_targets():
+    relation = {
+        "database": "gatus",
+        "endpoints": "10.146.72.61:5432",
+        "username": "gatus-user",
+        "password": "hidden-password",  # nosec B105
+    }
+    database = Mock()
+    database.fetch_relation_data.return_value = {32: relation}
+    broken_ids = set()
+    charm = SimpleNamespace(
+        _database_requirers={"postgresql": database},
+        _broken_postgresql_relation_ids=broken_ids,
+        app=SimpleNamespace(name="gatus"),
+        restart=Mock(),
+    )
+
+    GatusCharm._on_postgresql_database_relation_broken(
+        cast(GatusCharm, charm),
+        cast(ops.RelationBrokenEvent, SimpleNamespace(relation=SimpleNamespace(id=32))),
+    )
+    monitors, targets = GatusCharm._database_monitor_targets(cast(GatusCharm, charm))
+
+    assert broken_ids == {32}
+    assert monitors == []
+    assert targets == []
+    charm.restart.assert_called_once_with()

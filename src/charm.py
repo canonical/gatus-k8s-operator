@@ -4,6 +4,7 @@
 
 """Charm the application."""
 
+import json
 import logging
 import typing
 
@@ -16,6 +17,7 @@ from constants import (
     MATTERMOST_ALERTING_CONFIG,
     WEBHOOK_URL_PLACEHOLDER_RE,
 )
+from database_monitors import build_database_monitors
 from exceptions import SecretAccessPendingError
 from validator import GatusValidator
 
@@ -34,7 +36,46 @@ class GatusCharm(paas_charm.go.Charm):
         """
         super().__init__(*args)
 
+        self._broken_postgresql_relation_ids: set[int] = set()
+        self.framework.observe(
+            self._database_requirers["postgresql"].on.read_only_endpoints_changed,
+            self._on_postgresql_read_only_endpoints_changed,
+        )
+
         self.unit.status = GatusValidator.validate(self.model.config)
+
+    def _database_monitor_targets(
+        self,
+    ) -> tuple[list[dict[str, str]], list[dict[str, str | int]]]:
+        """Return public monitor metadata and private database probe targets."""
+        database = self._database_requirers.get("postgresql")
+        if database is None:
+            return [], []
+
+        relation_data = database.fetch_relation_data(
+            fields=[
+                "database",
+                "endpoints",
+                "password",
+                "read-only-endpoints",
+                "username",
+            ]
+        )
+        broken_relation_ids = self._broken_postgresql_relation_ids
+        data = next(
+            (relation_data[relation_id] for relation_id in relation_data if relation_id not in broken_relation_ids),
+            {},
+        )
+        return build_database_monitors(data, self.app.name)
+
+    def _on_postgresql_read_only_endpoints_changed(self, _: ops.EventBase) -> None:
+        """Refresh generated monitors when replica endpoints change."""
+        self.restart()
+
+    def _on_postgresql_database_relation_broken(self, event: ops.RelationBrokenEvent) -> None:
+        """Remove monitors for a PostgreSQL relation that has been removed."""
+        self._broken_postgresql_relation_ids.add(event.relation.id)
+        self.restart()
 
     def restart(self, rerun_migrations: bool = False) -> None:
         """Override the default restart to add a validation guard."""
@@ -186,6 +227,10 @@ class GatusCharm(paas_charm.go.Charm):
             env["MATTERMOST_WEBHOOK_URL"] = webhook_url or ""
             # Process the endpoints config, resolving placeholders
             env["APP_ENDPOINTS"] = endpoints or ""
+
+            monitors, probe_targets = self._database_monitor_targets()
+            env["APP_DB_MONITORS"] = json.dumps(monitors)
+            env["DB_PROBE_TARGETS"] = json.dumps(probe_targets)
 
             # Set the Gatus application log level
             log_level = str(self.model.config["log-level"])

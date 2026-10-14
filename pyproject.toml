@@ -25,6 +25,7 @@ lint = [
 # Dependencies of unit tests
 unit = [
     "coverage[toml]",
+    "fastapi==0.115.12",
     "jinja2",
     "ops[testing]",
     "paas-charm>=1.9.1",
