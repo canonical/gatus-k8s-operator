@@ -10,6 +10,7 @@ from types import SimpleNamespace
 from typing import cast
 from unittest.mock import Mock, patch
 
+import ops
 import paas_charm.go
 import pytest
 import yaml
@@ -414,7 +415,7 @@ def test_database_monitor_targets_use_primary_and_replica_endpoints():
         "endpoints": "10.146.72.61:5432",
         "read-only-endpoints": "10.146.72.55:5432,10.146.72.59:5432",
         "username": "gatus-user",
-        "password": "hidden-password",
+        "password": "hidden-password",  # nosec B105
     }
     database = Mock()
     database.fetch_relation_data.return_value = {32: relation}
@@ -444,7 +445,7 @@ def test_database_monitor_targets_refresh_when_relation_changes_or_is_removed():
             "endpoints": "10.146.72.61:5432",
             "read-only-endpoints": "10.146.72.55:5432",
             "username": "gatus-user",
-            "password": "hidden-password",
+            "password": "hidden-password",  # nosec B105
         }
     }
     charm = SimpleNamespace(
@@ -460,7 +461,7 @@ def test_database_monitor_targets_refresh_when_relation_changes_or_is_removed():
             "endpoints": "10.146.72.62:5432",
             "read-only-endpoints": "10.146.72.56:5432",
             "username": "gatus-user",
-            "password": "hidden-password",
+            "password": "hidden-password",  # nosec B105
         }
     }
     updated_monitors, _ = GatusCharm._database_monitor_targets(cast(GatusCharm, charm))
@@ -478,7 +479,7 @@ def test_database_relation_broken_clears_its_monitor_targets():
         "database": "gatus",
         "endpoints": "10.146.72.61:5432",
         "username": "gatus-user",
-        "password": "hidden-password",
+        "password": "hidden-password",  # nosec B105
     }
     database = Mock()
     database.fetch_relation_data.return_value = {32: relation}
@@ -491,7 +492,8 @@ def test_database_relation_broken_clears_its_monitor_targets():
     )
 
     GatusCharm._on_postgresql_database_relation_broken(
-        cast(GatusCharm, charm), SimpleNamespace(relation=SimpleNamespace(id=32))
+        cast(GatusCharm, charm),
+        cast(ops.RelationBrokenEvent, SimpleNamespace(relation=SimpleNamespace(id=32))),
     )
     monitors, targets = GatusCharm._database_monitor_targets(cast(GatusCharm, charm))
 

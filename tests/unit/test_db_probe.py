@@ -17,7 +17,7 @@ TARGET = {
     "port": 5432,
     "dbname": "gatus",
     "user": "gatus-user",
-    "password": "hidden-password",
+    "password": "hidden-password",  # nosec B105
 }
 
 
