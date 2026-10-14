@@ -5,11 +5,11 @@
 
 set -euo pipefail
 
-python3 /gatus/render_config.py
-
 python3 /gatus/db_probe.py &
 probe_pid=$!
 unset DB_PROBE_TARGETS
+
+python3 /gatus/render_config.py
 
 export GATUS_CONFIG_PATH=/config
 /gatus/bin/gatus &

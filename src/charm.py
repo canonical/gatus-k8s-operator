@@ -35,6 +35,7 @@ class GatusCharm(paas_charm.go.Charm):
         """
         super().__init__(*args)
 
+        self._broken_postgresql_relation_ids: set[int] = set()
         self.framework.observe(
             self._database_requirers["postgresql"].on.read_only_endpoints_changed,
             self._on_postgresql_read_only_endpoints_changed,
@@ -59,7 +60,11 @@ class GatusCharm(paas_charm.go.Charm):
                 "username",
             ]
         )
-        data = next(iter(relation_data.values()), {})
+        broken_relation_ids = self._broken_postgresql_relation_ids
+        data = next(
+            (relation_data[relation_id] for relation_id in relation_data if relation_id not in broken_relation_ids),
+            {},
+        )
         if not all(data.get(field) for field in ("endpoints", "username", "password")):
             return [], []
 
@@ -113,6 +118,11 @@ class GatusCharm(paas_charm.go.Charm):
 
     def _on_postgresql_read_only_endpoints_changed(self, _: ops.EventBase) -> None:
         """Refresh generated monitors when replica endpoints change."""
+        self.restart()
+
+    def _on_postgresql_database_relation_broken(self, event: ops.RelationBrokenEvent) -> None:
+        """Remove monitors for a PostgreSQL relation that has been removed."""
+        self._broken_postgresql_relation_ids.add(event.relation.id)
         self.restart()
 
     def restart(self, rerun_migrations: bool = False) -> None:

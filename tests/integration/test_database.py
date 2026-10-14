@@ -50,3 +50,5 @@ def test_db_relation(deployed_charm: pathlib.Path, juju: jubilant.Juju):
     assert config.storage is not None, "config.storage is None"
     assert config.storage.type == "postgres"
     assert "postgresql-k8s-primary" in config.storage.path
+    assert config.endpoints is not None
+    assert any(endpoint.name.startswith("PostgreSQL Primary (") for endpoint in config.endpoints)

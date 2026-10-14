@@ -40,6 +40,7 @@ def get_config(juju: jubilant.Juju) -> GatusConfig:
         "alerting",
         "announcements",
         "endpoints",
+        "db-monitor",
     ]
     # Retrieve the config files from the container
     for config_file in config_files:

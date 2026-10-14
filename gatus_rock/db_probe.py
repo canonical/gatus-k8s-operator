@@ -8,6 +8,7 @@ import json
 import logging
 import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import cast
 from urllib.parse import urlsplit
 
 logger = logging.getLogger(__name__)
@@ -46,7 +47,7 @@ class DatabaseProbeHandler(BaseHTTPRequestHandler):
         """Check the configured database endpoint selected by the request path."""
         path = urlsplit(self.path).path
         target_id = path.removeprefix("/health/")
-        targets = self.server.targets
+        targets = cast(DatabaseProbeServer, self.server).targets
         target = targets.get(target_id) if target_id and "/" not in target_id else None
 
         if target is None:
