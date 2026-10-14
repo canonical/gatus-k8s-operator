@@ -4,6 +4,7 @@
 
 """Charm the application."""
 
+import json
 import logging
 import typing
 
@@ -34,7 +35,85 @@ class GatusCharm(paas_charm.go.Charm):
         """
         super().__init__(*args)
 
+        self.framework.observe(
+            self._database_requirers["postgresql"].on.read_only_endpoints_changed,
+            self._on_postgresql_read_only_endpoints_changed,
+        )
+
         self.unit.status = GatusValidator.validate(self.model.config)
+
+    def _database_monitor_targets(
+        self,
+    ) -> tuple[list[dict[str, str]], list[dict[str, str | int]]]:
+        """Return public monitor metadata and private database probe targets."""
+        database = self._database_requirers.get("postgresql")
+        if database is None:
+            return [], []
+
+        relation_data = database.fetch_relation_data(
+            fields=[
+                "database",
+                "endpoints",
+                "password",
+                "read-only-endpoints",
+                "username",
+            ]
+        )
+        data = next(iter(relation_data.values()), {})
+        if not all(data.get(field) for field in ("endpoints", "username", "password")):
+            return [], []
+
+        database_name = data.get("database") or self.app.name
+        monitors: list[dict[str, str]] = []
+        probe_targets: list[dict[str, str | int]] = []
+        seen: set[tuple[str, int]] = set()
+
+        for role, endpoint_list in (
+            ("Primary", data.get("endpoints") or ""),
+            ("Read-only replica", data.get("read-only-endpoints") or ""),
+        ):
+            for endpoint in endpoint_list.split(","):
+                endpoint = endpoint.strip()
+                if endpoint.startswith("["):
+                    host, separator, port = endpoint[1:].partition("]:")
+                else:
+                    host, separator, port = endpoint.rpartition(":")
+                if not separator or not host:
+                    logger.warning("Ignoring invalid PostgreSQL endpoint: %s", endpoint)
+                    continue
+                if ":" in host and not endpoint.startswith("["):
+                    logger.warning("Ignoring invalid PostgreSQL endpoint: %s", endpoint)
+                    continue
+
+                try:
+                    port_number = int(port)
+                except ValueError:
+                    logger.warning("Ignoring invalid PostgreSQL endpoint: %s", endpoint)
+                    continue
+
+                if not 1 <= port_number <= 65535 or (host, port_number) in seen:
+                    continue
+
+                seen.add((host, port_number))
+                target_id = str(len(probe_targets))
+                address = f"[{host}]:{port_number}" if ":" in host else f"{host}:{port_number}"
+                monitors.append({"id": target_id, "name": f"PostgreSQL {role} ({address})"})
+                probe_targets.append(
+                    {
+                        "id": target_id,
+                        "host": host,
+                        "port": port_number,
+                        "dbname": database_name,
+                        "user": data["username"],
+                        "password": data["password"],
+                    }
+                )
+
+        return monitors, probe_targets
+
+    def _on_postgresql_read_only_endpoints_changed(self, _: ops.EventBase) -> None:
+        """Refresh generated monitors when replica endpoints change."""
+        self.restart()
 
     def restart(self, rerun_migrations: bool = False) -> None:
         """Override the default restart to add a validation guard."""
@@ -186,6 +265,10 @@ class GatusCharm(paas_charm.go.Charm):
             env["MATTERMOST_WEBHOOK_URL"] = webhook_url or ""
             # Process the endpoints config, resolving placeholders
             env["APP_ENDPOINTS"] = endpoints or ""
+
+            monitors, probe_targets = self._database_monitor_targets()
+            env["APP_DB_MONITORS"] = json.dumps(monitors)
+            env["DB_PROBE_TARGETS"] = json.dumps(probe_targets)
 
             # Set the Gatus application log level
             log_level = str(self.model.config["log-level"])

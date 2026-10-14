@@ -66,9 +66,11 @@ parts:
     source: .
     stage-packages:
       - python3-jinja2
+      - python3-psycopg2
     organize:
       gatus_wrapper.sh: gatus/gatus_wrapper.sh
       render_config.py: gatus/render_config.py
+      db_probe.py: gatus/db_probe.py
       templates: gatus/templates
     stage:
       - gatus
