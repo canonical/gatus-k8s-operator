@@ -202,8 +202,16 @@ def test_db_monitor_yaml_absent_without_database_relation(tmp_path):
 
 def test_db_monitor_yaml_contains_only_http_endpoints(tmp_path):
     monitors = [
-        {"id": "0", "name": "PostgreSQL Primary (10.146.72.61:5432)"},
-        {"id": "1", "name": "PostgreSQL Read-only replica (10.146.72.55:5432)"},
+        {
+            "id": "0",
+            "name": "PostgreSQL Primary (10.146.72.61:5432) [gatus]",
+            "is_primary": True,
+        },
+        {
+            "id": "1",
+            "name": "PostgreSQL Read-only replica (10.146.72.55:5432) [gatus]",
+            "is_primary": False,
+        },
     ]
     files = _render(tmp_path, {"APP_DB_MONITORS": json.dumps(monitors)})
 
@@ -211,7 +219,16 @@ def test_db_monitor_yaml_contains_only_http_endpoints(tmp_path):
     doc = yaml.safe_load(files["db-monitor.yaml"].read_text())
     assert len(doc["endpoints"]) == 2
     assert doc["endpoints"][0]["url"] == "http://127.0.0.1:9090/health/0"
-    assert doc["endpoints"][0]["conditions"] == ["[STATUS] == 200"]
+    assert doc["endpoints"][0]["conditions"] == [
+        "[STATUS] == 200",
+        "[BODY].transaction_read_only == false",
+        "[BODY].in_recovery == false",
+    ]
+    assert doc["endpoints"][1]["conditions"] == [
+        "[STATUS] == 200",
+        "[BODY].transaction_read_only == true",
+        "[BODY].in_recovery == true",
+    ]
     assert "password" not in files["db-monitor.yaml"].read_text()
 
 

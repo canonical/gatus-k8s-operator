@@ -422,7 +422,15 @@ def test_database_monitor_targets_use_primary_and_replica_endpoints():
     database.fetch_relation_data.return_value = {32: relation}
     charm = SimpleNamespace(
         _database_requirers={"postgresql": database},
+        _monitor_database_requirer=Mock(),
         _broken_postgresql_relation_ids=set(),
+        _broken_monitor_relation_ids=set(),
+        model=SimpleNamespace(
+            relations={
+                "postgresql": [SimpleNamespace(id=32)],
+                "posgresql_monitor": [],
+            }
+        ),
         app=SimpleNamespace(name="gatus"),
     )
 
@@ -434,6 +442,7 @@ def test_database_monitor_targets_use_primary_and_replica_endpoints():
         "10.146.72.55",
         "10.146.72.59",
     ]
+    assert [target["is_primary"] for target in probe_targets] == [True, False, False]
     assert all(target["password"] == "hidden-password" for target in probe_targets)
     assert "hidden-password" not in json.dumps(monitors)
 
@@ -448,7 +457,13 @@ def test_database_monitor_builder_validates_ports_and_formats_ipv6():
 
     monitors, targets = build_database_monitors(relation, "gatus")
 
-    assert monitors == [{"id": "0", "name": "PostgreSQL Primary ([2001:db8::61]:5432)"}]
+    assert monitors == [
+        {
+            "id": "0",
+            "name": "PostgreSQL Primary ([2001:db8::61]:5432) [gatus]",
+            "is_primary": True,
+        }
+    ]
     assert targets[0]["host"] == "2001:db8::61"
     assert targets[0]["port"] == 5432
     assert "hidden-password" not in json.dumps(monitors)
@@ -467,7 +482,15 @@ def test_database_monitor_targets_refresh_when_relation_changes_or_is_removed():
     }
     charm = SimpleNamespace(
         _database_requirers={"postgresql": database},
+        _monitor_database_requirer=Mock(),
         _broken_postgresql_relation_ids=set(),
+        _broken_monitor_relation_ids=set(),
+        model=SimpleNamespace(
+            relations={
+                "postgresql": [SimpleNamespace(id=32)],
+                "posgresql_monitor": [],
+            }
+        ),
         app=SimpleNamespace(name="gatus"),
     )
 
@@ -481,8 +504,10 @@ def test_database_monitor_targets_refresh_when_relation_changes_or_is_removed():
             "password": "hidden-password",  # nosec B105
         }
     }
+    charm.model.relations["postgresql"] = [SimpleNamespace(id=33)]
     updated_monitors, _ = GatusCharm._database_monitor_targets(cast(GatusCharm, charm))
     database.fetch_relation_data.return_value = {}
+    charm.model.relations["postgresql"] = []
     removed_monitors, removed_targets = GatusCharm._database_monitor_targets(cast(GatusCharm, charm))
 
     assert "10.146.72.61" in first_monitors[0]["name"]
@@ -503,7 +528,10 @@ def test_database_relation_broken_clears_its_monitor_targets():
     broken_ids = set()
     charm = SimpleNamespace(
         _database_requirers={"postgresql": database},
+        _monitor_database_requirer=Mock(),
         _broken_postgresql_relation_ids=broken_ids,
+        _broken_monitor_relation_ids=set(),
+        model=SimpleNamespace(relations={"postgresql": [], "posgresql_monitor": []}),
         app=SimpleNamespace(name="gatus"),
         restart=Mock(),
     )
@@ -518,3 +546,81 @@ def test_database_relation_broken_clears_its_monitor_targets():
     assert monitors == []
     assert targets == []
     charm.restart.assert_called_once_with()
+
+
+def test_database_monitor_targets_include_each_external_relation_with_unique_ids():
+    monitor_database = Mock()
+    relation_data = {
+        41: {
+            "database": "payments",
+            "endpoints": "10.0.0.1:5432",
+            "read-only-endpoints": "10.0.0.2:5432,10.0.0.3:5432",
+            "username": "payments-user",
+            "password": "payments-password",  # nosec B105
+        },
+        42: {
+            "database": "analytics",
+            "endpoints": "10.0.1.1:5432",
+            "read-only-endpoints": "10.0.1.2:5432,10.0.1.3:5432",
+            "username": "analytics-user",
+            "password": "analytics-password",  # nosec B105
+        },
+    }
+    monitor_database.fetch_relation_data.return_value = relation_data
+    charm = SimpleNamespace(
+        _database_requirers={},
+        _monitor_database_requirer=monitor_database,
+        _broken_postgresql_relation_ids=set(),
+        _broken_monitor_relation_ids=set(),
+        model=SimpleNamespace(
+            relations={
+                "postgresql": [],
+                "posgresql_monitor": [
+                    SimpleNamespace(id=41),
+                    SimpleNamespace(id=42),
+                ],
+            }
+        ),
+        app=SimpleNamespace(name="gatus"),
+        restart=Mock(),
+    )
+
+    monitors, targets = GatusCharm._database_monitor_targets(cast(GatusCharm, charm))
+
+    assert len(monitors) == 6
+    assert len({monitor["id"] for monitor in monitors}) == 6
+    assert [monitor["id"] for monitor in monitors] == [
+        "monitor-41-0",
+        "monitor-41-1",
+        "monitor-41-2",
+        "monitor-42-0",
+        "monitor-42-1",
+        "monitor-42-2",
+    ]
+    assert [monitor["is_primary"] for monitor in monitors] == [
+        True,
+        False,
+        False,
+        True,
+        False,
+        False,
+    ]
+    assert len(targets) == 6
+    monitor_database.fetch_relation_data.assert_called_with(
+        relation_ids=[41, 42],
+        fields=["database", "endpoints", "password", "read-only-endpoints", "username"],
+    )
+
+    relation_data[42]["read-only-endpoints"] = "10.0.1.4:5432,10.0.1.5:5432"
+    updated_monitors, _ = GatusCharm._database_monitor_targets(cast(GatusCharm, charm))
+    assert any("10.0.1.4:5432" in monitor["name"] for monitor in updated_monitors)
+
+    GatusCharm._on_monitor_database_relation_broken(
+        cast(GatusCharm, charm),
+        cast(ops.RelationBrokenEvent, SimpleNamespace(relation=SimpleNamespace(id=41))),
+    )
+    remaining_monitors, remaining_targets = GatusCharm._database_monitor_targets(cast(GatusCharm, charm))
+    assert len(remaining_monitors) == 3
+    assert len(remaining_targets) == 3
+    assert all(monitor["id"].startswith("monitor-42-") for monitor in remaining_monitors)
+    assert charm.restart.call_count == 1

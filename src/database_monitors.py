@@ -31,6 +31,7 @@ class DatabaseProbeTarget(BaseModel):
     dbname: str
     user: str
     password: str
+    is_primary: bool
 
 
 def _split_endpoint(endpoint: str) -> tuple[str, int] | None:
@@ -55,8 +56,8 @@ def _split_endpoint(endpoint: str) -> tuple[str, int] | None:
 
 
 def build_database_monitors(
-    relation_data: dict[str, str], default_database: str
-) -> tuple[list[dict[str, str]], list[dict[str, str | int]]]:
+    relation_data: dict[str, str], default_database: str, target_id_prefix: str = ""
+) -> tuple[list[dict[str, str | bool]], list[dict[str, str | int | bool]]]:
     """Build public monitor metadata and private probe targets from one relation."""
     try:
         relation = PostgreSQLRelationData.model_validate(relation_data)
@@ -68,13 +69,13 @@ def build_database_monitors(
         return [], []
 
     database_name = relation.database or default_database
-    monitors: list[dict[str, str]] = []
-    targets: list[dict[str, str | int]] = []
+    monitors: list[dict[str, str | bool]] = []
+    targets: list[dict[str, str | int | bool]] = []
     seen: set[tuple[str, int]] = set()
 
-    for role, endpoint_list in (
-        ("Primary", relation.endpoints or ""),
-        ("Read-only replica", relation.read_only_endpoints),
+    for role, endpoint_list, is_primary in (
+        ("Primary", relation.endpoints or "", True),
+        ("Read-only replica", relation.read_only_endpoints, False),
     ):
         for endpoint in endpoint_list.split(","):
             parsed_endpoint = _split_endpoint(endpoint)
@@ -84,7 +85,7 @@ def build_database_monitors(
             if (host, port) in seen:
                 continue
 
-            target_id = str(len(targets))
+            target_id = f"{target_id_prefix}-{len(targets)}" if target_id_prefix else str(len(targets))
             address = f"[{host}]:{port}" if ":" in host else f"{host}:{port}"
             try:
                 target = DatabaseProbeTarget.model_validate(
@@ -95,6 +96,7 @@ def build_database_monitors(
                         "dbname": database_name,
                         "user": relation.username,
                         "password": relation.password,
+                        "is_primary": is_primary,
                     }
                 )
             except ValidationError:
@@ -102,7 +104,13 @@ def build_database_monitors(
                 continue
 
             seen.add((host, port))
-            monitors.append({"id": target.id, "name": f"PostgreSQL {role} ({address})"})
+            monitors.append(
+                {
+                    "id": target.id,
+                    "name": f"PostgreSQL {role} ({address}) [{database_name}]",
+                    "is_primary": is_primary,
+                }
+            )
             targets.append(target.model_dump())
 
     return monitors, targets

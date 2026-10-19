@@ -10,6 +10,7 @@ import typing
 
 import ops
 import paas_charm.go
+from charms.data_platform_libs.v0.data_interfaces import DatabaseRequires
 from ops.model import ActiveStatus, BlockedStatus, ModelError, SecretNotFoundError
 from paas_charm.app import App
 
@@ -37,44 +38,96 @@ class GatusCharm(paas_charm.go.Charm):
         super().__init__(*args)
 
         self._broken_postgresql_relation_ids: set[int] = set()
-        self.framework.observe(
+        self._broken_monitor_relation_ids: set[int] = set()
+        self._monitor_database_requirer = DatabaseRequires(
+            self,
+            relation_name="posgresql_monitor",
+            database_name=self.app.name,
+        )
+        for event_source in (
+            self._database_requirers["postgresql"].on.database_created,
+            self._database_requirers["postgresql"].on.endpoints_changed,
             self._database_requirers["postgresql"].on.read_only_endpoints_changed,
-            self._on_postgresql_read_only_endpoints_changed,
+            self._monitor_database_requirer.on.database_created,
+            self._monitor_database_requirer.on.endpoints_changed,
+            self._monitor_database_requirer.on.read_only_endpoints_changed,
+        ):
+            self.framework.observe(event_source, self._on_database_monitor_relation_changed)
+        self.framework.observe(
+            self.on["postgresql"].relation_broken,
+            self._on_postgresql_database_relation_broken,
+        )
+        self.framework.observe(
+            self.on["posgresql_monitor"].relation_broken,
+            self._on_monitor_database_relation_broken,
         )
 
         self.unit.status = GatusValidator.validate(self.model.config)
 
     def _database_monitor_targets(
         self,
-    ) -> tuple[list[dict[str, str]], list[dict[str, str | int]]]:
+    ) -> tuple[list[dict[str, str | bool]], list[dict[str, str | int | bool]]]:
         """Return public monitor metadata and private database probe targets."""
-        database = self._database_requirers.get("postgresql")
-        if database is None:
-            return [], []
+        monitors: list[dict[str, str | bool]] = []
+        targets: list[dict[str, str | int | bool]] = []
+        fields = [
+            "database",
+            "endpoints",
+            "password",
+            "read-only-endpoints",
+            "username",
+        ]
 
-        relation_data = database.fetch_relation_data(
-            fields=[
-                "database",
-                "endpoints",
-                "password",
-                "read-only-endpoints",
-                "username",
-            ]
-        )
-        broken_relation_ids = self._broken_postgresql_relation_ids
-        data = next(
-            (relation_data[relation_id] for relation_id in relation_data if relation_id not in broken_relation_ids),
-            {},
-        )
-        return build_database_monitors(data, self.app.name)
+        storage_database = self._database_requirers.get("postgresql")
+        storage_relation_ids = [
+            relation.id
+            for relation in self.model.relations.get("postgresql", [])
+            if relation.id not in self._broken_postgresql_relation_ids
+        ]
+        if storage_database and storage_relation_ids:
+            relation_data = storage_database.fetch_relation_data(fields=fields)
+            for relation_id, data in relation_data.items():
+                if relation_id not in storage_relation_ids:
+                    continue
+                relation_monitors, relation_targets = build_database_monitors(
+                    data, self.app.name, f"storage-{relation_id}"
+                )
+                monitors.extend(relation_monitors)
+                targets.extend(relation_targets)
 
-    def _on_postgresql_read_only_endpoints_changed(self, _: ops.EventBase) -> None:
-        """Refresh generated monitors when replica endpoints change."""
+        monitor_relation_ids = [
+            relation.id
+            for relation in self.model.relations.get("posgresql_monitor", [])
+            if relation.id not in self._broken_monitor_relation_ids
+        ]
+        if monitor_relation_ids:
+            relation_data = self._monitor_database_requirer.fetch_relation_data(
+                relation_ids=monitor_relation_ids,
+                fields=fields,
+            )
+            for relation_id, data in relation_data.items():
+                if relation_id not in monitor_relation_ids:
+                    continue
+                relation_monitors, relation_targets = build_database_monitors(
+                    data, self.app.name, f"monitor-{relation_id}"
+                )
+                monitors.extend(relation_monitors)
+                targets.extend(relation_targets)
+
+        return monitors, targets
+
+    def _on_database_monitor_relation_changed(self, _: ops.EventBase) -> None:
+        """Refresh generated monitors when database credentials or endpoints change."""
         self.restart()
 
     def _on_postgresql_database_relation_broken(self, event: ops.RelationBrokenEvent) -> None:
-        """Remove monitors for a PostgreSQL relation that has been removed."""
+        """Remove monitors for a PostgreSQL storage relation that has been removed."""
         self._broken_postgresql_relation_ids.add(event.relation.id)
+        self.restart()
+
+    def _on_monitor_database_relation_broken(self, event: ops.RelationBrokenEvent) -> None:
+        """Remove monitors for a PostgreSQL monitoring relation that has been removed."""
+        self._broken_monitor_relation_ids.add(event.relation.id)
         self.restart()
 
     def restart(self, rerun_migrations: bool = False) -> None:

@@ -19,30 +19,35 @@ TARGET = {
 }
 
 
-def test_list_schemas_queries_database_metadata(monkeypatch):
+def test_query_database_returns_schema_and_replication_status(monkeypatch):
     cursor = Mock()
-    cursor.fetchall.return_value = [("public",), ("monitoring",)]
+    cursor.fetchone.return_value = (False, False, ["public", "monitoring"])
     connection = Mock()
     connection.cursor.return_value = MagicMock()
     connection.cursor.return_value.__enter__.return_value = cursor
     psycopg2 = Mock(connect=Mock(return_value=connection))
     monkeypatch.setitem(sys.modules, "psycopg2", psycopg2)
 
-    assert db_probe.list_schemas(TARGET) == ["public", "monitoring"]
+    assert db_probe.query_database(TARGET) == {
+        "transaction_read_only": False,
+        "in_recovery": False,
+        "schemas": ["public", "monitoring"],
+    }
     connection_parameters = {key: TARGET[key] for key in ("host", "port", "dbname", "user", "password")}
     psycopg2.connect.assert_called_once_with(**connection_parameters, connect_timeout=3)
-    cursor.execute.assert_called_once_with("SELECT schema_name FROM information_schema.schemata ORDER BY schema_name")
+    assert "current_setting('transaction_read_only')" in cursor.execute.call_args.args[0]
+    assert "pg_is_in_recovery()" in cursor.execute.call_args.args[0]
     connection.close.assert_called_once_with()
 
 
-def test_list_schemas_returns_none_when_connection_fails(monkeypatch):
+def test_query_database_returns_none_when_connection_fails(monkeypatch):
     psycopg2 = Mock(connect=Mock(side_effect=OSError("unreachable")))
     monkeypatch.setitem(sys.modules, "psycopg2", psycopg2)
 
-    assert db_probe.list_schemas(TARGET) is None
+    assert db_probe.query_database(TARGET) is None
 
 
-def test_list_schemas_returns_none_when_query_fails(monkeypatch):
+def test_query_database_returns_none_when_query_fails(monkeypatch):
     cursor = Mock()
     cursor.execute.side_effect = RuntimeError("query failed")
     connection = Mock()
@@ -51,23 +56,36 @@ def test_list_schemas_returns_none_when_query_fails(monkeypatch):
     psycopg2 = Mock(connect=Mock(return_value=connection))
     monkeypatch.setitem(sys.modules, "psycopg2", psycopg2)
 
-    assert db_probe.list_schemas(TARGET) is None
+    assert db_probe.query_database(TARGET) is None
     connection.close.assert_called_once_with()
 
 
-def test_health_endpoint_returns_schemas_when_query_succeeds(monkeypatch):
+def test_health_endpoint_returns_database_status_when_query_succeeds(monkeypatch):
     monkeypatch.setitem(db_probe.targets, "0", TARGET)
-    monkeypatch.setattr(db_probe, "list_schemas", lambda target: ["public"])
+    monkeypatch.setattr(
+        db_probe,
+        "query_database",
+        lambda target: {
+            "transaction_read_only": False,
+            "in_recovery": False,
+            "schemas": ["public"],
+        },
+    )
 
     response = db_probe.health("0")
 
     assert response.status_code == 200
-    assert json.loads(bytes(response.body)) == {"status": "ok", "schemas": ["public"]}
+    assert json.loads(bytes(response.body)) == {
+        "status": "ok",
+        "transaction_read_only": False,
+        "in_recovery": False,
+        "schemas": ["public"],
+    }
 
 
 def test_health_endpoint_returns_service_unavailable_when_query_fails(monkeypatch):
     monkeypatch.setitem(db_probe.targets, "0", TARGET)
-    monkeypatch.setattr(db_probe, "list_schemas", lambda target: None)
+    monkeypatch.setattr(db_probe, "query_database", lambda target: None)
 
     response = db_probe.health("0")
 
