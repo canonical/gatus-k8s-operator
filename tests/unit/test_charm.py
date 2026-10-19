@@ -510,8 +510,8 @@ def test_database_monitor_targets_refresh_when_relation_changes_or_is_removed():
     charm.model.relations["postgresql"] = []
     removed_monitors, removed_targets = GatusCharm._database_monitor_targets(cast(GatusCharm, charm))
 
-    assert "10.146.72.61" in first_monitors[0]["name"]
-    assert "10.146.72.62" in updated_monitors[0]["name"]
+    assert "10.146.72.61" in str(first_monitors[0]["name"])
+    assert "10.146.72.62" in str(updated_monitors[0]["name"])
     assert removed_monitors == []
     assert removed_targets == []
 
@@ -613,7 +613,7 @@ def test_database_monitor_targets_include_each_external_relation_with_unique_ids
 
     relation_data[42]["read-only-endpoints"] = "10.0.1.4:5432,10.0.1.5:5432"
     updated_monitors, _ = GatusCharm._database_monitor_targets(cast(GatusCharm, charm))
-    assert any("10.0.1.4:5432" in monitor["name"] for monitor in updated_monitors)
+    assert any("10.0.1.4:5432" in str(monitor["name"]) for monitor in updated_monitors)
 
     GatusCharm._on_monitor_database_relation_broken(
         cast(GatusCharm, charm),
@@ -622,5 +622,5 @@ def test_database_monitor_targets_include_each_external_relation_with_unique_ids
     remaining_monitors, remaining_targets = GatusCharm._database_monitor_targets(cast(GatusCharm, charm))
     assert len(remaining_monitors) == 3
     assert len(remaining_targets) == 3
-    assert all(monitor["id"].startswith("monitor-42-") for monitor in remaining_monitors)
+    assert all(str(monitor["id"]).startswith("monitor-42-") for monitor in remaining_monitors)
     assert charm.restart.call_count == 1

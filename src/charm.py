@@ -44,19 +44,16 @@ class GatusCharm(paas_charm.go.Charm):
             relation_name="posgresql_monitor",
             database_name=self.app.name,
         )
-        for event_source in (
-            self._database_requirers["postgresql"].on.database_created,
-            self._database_requirers["postgresql"].on.endpoints_changed,
+        self.framework.observe(
             self._database_requirers["postgresql"].on.read_only_endpoints_changed,
+            self._on_postgresql_read_only_endpoints_changed,
+        )
+        for event_source in (
             self._monitor_database_requirer.on.database_created,
             self._monitor_database_requirer.on.endpoints_changed,
             self._monitor_database_requirer.on.read_only_endpoints_changed,
         ):
             self.framework.observe(event_source, self._on_database_monitor_relation_changed)
-        self.framework.observe(
-            self.on["postgresql"].relation_broken,
-            self._on_postgresql_database_relation_broken,
-        )
         self.framework.observe(
             self.on["posgresql_monitor"].relation_broken,
             self._on_monitor_database_relation_broken,
@@ -118,6 +115,10 @@ class GatusCharm(paas_charm.go.Charm):
 
     def _on_database_monitor_relation_changed(self, _: ops.EventBase) -> None:
         """Refresh generated monitors when database credentials or endpoints change."""
+        self.restart()
+
+    def _on_postgresql_read_only_endpoints_changed(self, _: ops.EventBase) -> None:
+        """Refresh generated monitors when replica endpoints change."""
         self.restart()
 
     def _on_postgresql_database_relation_broken(self, event: ops.RelationBrokenEvent) -> None:
