@@ -50,6 +50,10 @@ parts:
     stage-packages:
       - bash
       - git
+    stage:
+      - -bin
+      - -lib
+      - -lib64
 
   add-ca-certificates:
     # This installs ca-certificates in the build env to populate our /etc/ssl/certs,
@@ -61,20 +65,23 @@ parts:
       mkdir -p $CRAFT_PART_INSTALL/etc/ssl/certs/
       cp /etc/ssl/certs/ca-certificates.crt $CRAFT_PART_INSTALL/etc/ssl/certs/ca-certificates.crt
 
+  python-deps:
+    plugin: python
+    source: .
+    source-type: local
+    python-requirements:
+      - requirements.txt
+    build-packages:
+      - python3-pip
+      - python3-venv
+    stage-packages:
+      - python3-venv
+    stage:
+      - -lib64
+
   copy-files:
     plugin: dump
     source: .
-    build-packages:
-      - python3-pip
-    stage-packages:
-      - python3-jinja2
-      - python3-psycopg2
-      - python3-uvicorn
-    override-build: |
-      craftctl default
-      python3 -m pip install --break-system-packages \
-        --target "$CRAFT_PART_INSTALL/usr/local/lib/python3.12/dist-packages" \
-        "fastapi==0.115.12"
     organize:
       gatus_wrapper.sh: gatus/gatus_wrapper.sh
       render_config.py: gatus/render_config.py
@@ -82,7 +89,3 @@ parts:
       templates: gatus/templates
     stage:
       - gatus
-      - usr/bin/python3*
-      - usr/lib/python3*
-      - usr/lib/x86_64-linux-gnu/libpython3*
-      - usr/local/lib/python3.12/dist-packages
