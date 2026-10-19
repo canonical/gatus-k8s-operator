@@ -7,19 +7,31 @@
 import json
 import logging
 import os
+from typing import Literal, TypedDict
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
 app = FastAPI()
+
+
+class PostgreSQLHealthResponse(TypedDict):
+    """Successful PostgreSQL health response."""
+
+    status: Literal["ok"]
+    transaction_read_only: bool
+    in_recovery: bool
+    schemas: list[str]
+
+
 targets = {
     str(target["id"]): target
     for target in json.loads(os.environ.get("DB_PROBE_TARGETS", "[]"))
 }
 
 
-def query_database(target: dict[str, str | int | bool]) -> dict[str, bool | list[str]] | None:
+def query_database(target: dict[str, str | int | bool]) -> PostgreSQLHealthResponse | None:
     """Return schema and role status, or None when the PostgreSQL query fails."""
     connection = None
     try:
@@ -45,6 +57,7 @@ def query_database(target: dict[str, str | int | bool]) -> dict[str, bool | list
             )
             transaction_read_only, in_recovery, schemas = cursor.fetchone()
             return {
+                "status": "ok",
                 "transaction_read_only": transaction_read_only,
                 "in_recovery": in_recovery,
                 "schemas": schemas,
@@ -56,8 +69,9 @@ def query_database(target: dict[str, str | int | bool]) -> dict[str, bool | list
         if connection is not None:
             connection.close()
 
-@app.get("/health/{target_id}")
-def health(target_id: str) -> JSONResponse:
+
+@app.get("/health/{target_id}", response_model=None)
+def health(target_id: str) -> PostgreSQLHealthResponse | JSONResponse:
     """Report query and role health for a configured PostgreSQL endpoint."""
     target = targets.get(target_id)
     if target is None:
@@ -67,4 +81,4 @@ def health(target_id: str) -> JSONResponse:
     if database_status is None:
         return JSONResponse(status_code=503, content={"status": "error"})
 
-    return JSONResponse(status_code=200, content={"status": "ok", **database_status})
+    return database_status

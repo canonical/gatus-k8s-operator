@@ -8,6 +8,7 @@ import sys
 from unittest.mock import MagicMock, Mock
 
 import db_probe
+from fastapi.responses import JSONResponse
 
 TARGET = {
     "id": "0",
@@ -29,6 +30,7 @@ def test_query_database_returns_schema_and_replication_status(monkeypatch):
     monkeypatch.setitem(sys.modules, "psycopg2", psycopg2)
 
     assert db_probe.query_database(TARGET) == {
+        "status": "ok",
         "transaction_read_only": False,
         "in_recovery": False,
         "schemas": ["public", "monitoring"],
@@ -66,16 +68,15 @@ def test_health_endpoint_returns_database_status_when_query_succeeds(monkeypatch
         db_probe,
         "query_database",
         lambda target: {
+            "status": "ok",
             "transaction_read_only": False,
             "in_recovery": False,
             "schemas": ["public"],
         },
     )
-
     response = db_probe.health("0")
 
-    assert response.status_code == 200
-    assert json.loads(bytes(response.body)) == {
+    assert response == {
         "status": "ok",
         "transaction_read_only": False,
         "in_recovery": False,
@@ -89,6 +90,7 @@ def test_health_endpoint_returns_service_unavailable_when_query_fails(monkeypatc
 
     response = db_probe.health("0")
 
+    assert isinstance(response, JSONResponse)
     assert response.status_code == 503
     assert json.loads(bytes(response.body)) == {"status": "error"}
 
@@ -96,5 +98,6 @@ def test_health_endpoint_returns_service_unavailable_when_query_fails(monkeypatc
 def test_health_endpoint_returns_not_found_for_unknown_target():
     response = db_probe.health("unknown")
 
+    assert isinstance(response, JSONResponse)
     assert response.status_code == 404
     assert json.loads(bytes(response.body)) == {"status": "error"}
