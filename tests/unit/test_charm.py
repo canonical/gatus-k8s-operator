@@ -6,6 +6,7 @@
 import json
 import logging
 from datetime import datetime, timezone
+from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
 from unittest.mock import Mock, patch
@@ -15,6 +16,7 @@ import paas_charm.go
 import pytest
 import yaml
 from ops.model import ActiveStatus, BlockedStatus, ConfigData, ModelError, SecretNotFoundError
+from ops.testing import Harness
 from pydantic import ValidationError
 
 from charm import GatusCharm
@@ -74,6 +76,40 @@ def test_gatus_config():
     assert gatus_config.endpoints[0].alerts is not None
     assert len(gatus_config.endpoints[0].alerts) > 0
     assert gatus_config.endpoints[0].alerts[0].type == "mattermost"
+
+
+def test_postgresql_relations_have_distinct_requirers(tmp_path):
+    charmcraft = yaml.safe_load((Path(__file__).parents[2] / "charmcraft.yaml").read_text())
+    charmcraft["peers"] = {"secret-storage": {"interface": "secret-storage"}}
+    charmcraft["containers"] = {"app": {}}
+    charmcraft["requires"].update(
+        {
+            "ingress": {"interface": "ingress", "optional": True},
+            "logging": {"interface": "loki_push_api", "optional": True},
+        }
+    )
+    charmcraft["provides"] = {
+        "metrics-endpoint": {"interface": "prometheus_scrape"},
+        "grafana-dashboard": {"interface": "grafana_dashboard"},
+    }
+    actions = {"rotate-secret-key": {"description": "Rotate secret key", "params": {}}}
+    harness = Harness(
+        GatusCharm,
+        meta=yaml.safe_dump(charmcraft),
+        config=yaml.safe_dump(charmcraft["config"]),
+        actions=yaml.safe_dump(actions),
+    )
+
+    try:
+        with patch.object(GatusCharm, "build_cos_dir", return_value=tmp_path):
+            harness.begin()
+        charm = harness.charm
+
+        assert list(charm._database_requirers) == ["postgresql"]
+        assert charm._monitor_database_requirer.relation_name == "posgresql_monitor"
+        assert "posgresql_monitor" in charm.framework.meta.requires
+    finally:
+        harness.cleanup()
 
 
 def test_invalid_announcements():

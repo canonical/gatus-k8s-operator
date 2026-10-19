@@ -6,7 +6,6 @@
 
 import json
 import logging
-import typing
 
 import ops
 import paas_charm.go
@@ -28,14 +27,25 @@ logger = logging.getLogger(__name__)
 class GatusCharm(paas_charm.go.Charm):
     """Go Charm service."""
 
-    def __init__(self, *args: typing.Any) -> None:
+    def __init__(self, framework: ops.Framework) -> None:
         """Initialize the instance.
 
         Args:
-            args: passthrough to CharmBase.
+            framework: Ops framework.
 
         """
-        super().__init__(*args)
+        requires = framework.meta.requires
+        monitor_relation = requires.get("posgresql_monitor")
+        if monitor_relation is not None:
+            # PaaS Charm keys database requirers by interface, so duplicate interfaces collide.
+            framework.meta.requires = {
+                name: relation for name, relation in requires.items() if name != "posgresql_monitor"
+            }
+        try:
+            super().__init__(framework)
+        finally:
+            if monitor_relation is not None:
+                framework.meta.requires = requires
 
         self._broken_postgresql_relation_ids: set[int] = set()
         self._broken_monitor_relation_ids: set[int] = set()
