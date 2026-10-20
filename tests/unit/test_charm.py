@@ -106,8 +106,8 @@ def test_postgresql_relations_have_distinct_requirers(tmp_path):
         charm = harness.charm
 
         assert list(charm._database_requirers) == ["postgresql"]
-        assert charm._monitor_database_requirer.relation_name == "posgresql_monitor"
-        assert "posgresql_monitor" in charm.framework.meta.requires
+        assert charm._monitor_database_requirer.relation_name == "postgresql_monitor"
+        assert "postgresql_monitor" in charm.framework.meta.requires
     finally:
         harness.cleanup()
 
@@ -457,14 +457,12 @@ def test_database_monitor_targets_use_primary_and_replica_endpoints():
     database = Mock()
     database.fetch_relation_data.return_value = {32: relation}
     charm = SimpleNamespace(
-        _database_requirers={"postgresql": database},
-        _monitor_database_requirer=Mock(),
-        _broken_postgresql_relation_ids=set(),
+        _monitor_database_requirer=database,
         _broken_monitor_relation_ids=set(),
         model=SimpleNamespace(
             relations={
-                "postgresql": [SimpleNamespace(id=32)],
-                "posgresql_monitor": [],
+                "postgresql": [],
+                "postgresql_monitor": [SimpleNamespace(id=32)],
             }
         ),
         app=SimpleNamespace(name="gatus"),
@@ -517,14 +515,12 @@ def test_database_monitor_targets_refresh_when_relation_changes_or_is_removed():
         }
     }
     charm = SimpleNamespace(
-        _database_requirers={"postgresql": database},
-        _monitor_database_requirer=Mock(),
-        _broken_postgresql_relation_ids=set(),
+        _monitor_database_requirer=database,
         _broken_monitor_relation_ids=set(),
         model=SimpleNamespace(
             relations={
-                "postgresql": [SimpleNamespace(id=32)],
-                "posgresql_monitor": [],
+                "postgresql": [],
+                "postgresql_monitor": [SimpleNamespace(id=32)],
             }
         ),
         app=SimpleNamespace(name="gatus"),
@@ -540,48 +536,16 @@ def test_database_monitor_targets_refresh_when_relation_changes_or_is_removed():
             "password": "hidden-password",  # nosec B105
         }
     }
-    charm.model.relations["postgresql"] = [SimpleNamespace(id=33)]
+    charm.model.relations["postgresql_monitor"] = [SimpleNamespace(id=33)]
     updated_monitors, _ = GatusCharm._database_monitor_targets(cast(GatusCharm, charm))
     database.fetch_relation_data.return_value = {}
-    charm.model.relations["postgresql"] = []
+    charm.model.relations["postgresql_monitor"] = []
     removed_monitors, removed_targets = GatusCharm._database_monitor_targets(cast(GatusCharm, charm))
 
     assert "10.146.72.61" in str(first_monitors[0]["name"])
     assert "10.146.72.62" in str(updated_monitors[0]["name"])
     assert removed_monitors == []
     assert removed_targets == []
-
-
-def test_database_relation_broken_clears_its_monitor_targets():
-    relation = {
-        "database": "gatus",
-        "endpoints": "10.146.72.61:5432",
-        "username": "gatus-user",
-        "password": "hidden-password",  # nosec B105
-    }
-    database = Mock()
-    database.fetch_relation_data.return_value = {32: relation}
-    broken_ids = set()
-    charm = SimpleNamespace(
-        _database_requirers={"postgresql": database},
-        _monitor_database_requirer=Mock(),
-        _broken_postgresql_relation_ids=broken_ids,
-        _broken_monitor_relation_ids=set(),
-        model=SimpleNamespace(relations={"postgresql": [], "posgresql_monitor": []}),
-        app=SimpleNamespace(name="gatus"),
-        restart=Mock(),
-    )
-
-    GatusCharm._on_postgresql_database_relation_broken(
-        cast(GatusCharm, charm),
-        cast(ops.RelationBrokenEvent, SimpleNamespace(relation=SimpleNamespace(id=32))),
-    )
-    monitors, targets = GatusCharm._database_monitor_targets(cast(GatusCharm, charm))
-
-    assert broken_ids == {32}
-    assert monitors == []
-    assert targets == []
-    charm.restart.assert_called_once_with()
 
 
 def test_database_monitor_targets_include_each_external_relation_with_unique_ids():
@@ -606,12 +570,11 @@ def test_database_monitor_targets_include_each_external_relation_with_unique_ids
     charm = SimpleNamespace(
         _database_requirers={},
         _monitor_database_requirer=monitor_database,
-        _broken_postgresql_relation_ids=set(),
         _broken_monitor_relation_ids=set(),
         model=SimpleNamespace(
             relations={
                 "postgresql": [],
-                "posgresql_monitor": [
+                "postgresql_monitor": [
                     SimpleNamespace(id=41),
                     SimpleNamespace(id=42),
                 ],

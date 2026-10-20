@@ -56,11 +56,11 @@ def _split_endpoint(endpoint: str) -> tuple[str, int] | None:
 
 
 def build_database_monitors(
-    relation_data: dict[str, str], default_database: str, target_id_prefix: str = ""
+    databag: dict[str, str], default_database: str, target_id_prefix: str = ""
 ) -> tuple[list[dict[str, str | bool]], list[dict[str, str | int | bool]]]:
     """Build public monitor metadata and private probe targets from one relation."""
     try:
-        relation = PostgreSQLRelationData.model_validate(relation_data)
+        relation = PostgreSQLRelationData.model_validate(databag)
     except ValidationError:
         logger.warning("Ignoring invalid PostgreSQL relation data")
         return [], []

@@ -15,9 +15,15 @@ juju deploy gatus-k8s --channel=edge
 ## Configuration
 
 ### 1. Postgresql relation
+Gatus requires TLS on the database connection, so PostgreSQL must be integrated
+with a TLS certificates provider such as `self-signed-certificates`. Without it,
+Gatus fails with `panic: pq: SSL is not enabled on the server`.
+
 Run: 
 
 ```sh
+juju deploy self-signed-certificates
+juju integrate postgresql-k8s:client-certificates self-signed-certificates
 juju integrate gatus-k8s postgresql-k8s
 ```
 The charm automatically generates a few environment variables, 
