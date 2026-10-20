@@ -77,44 +77,44 @@ def build_database_monitors(
     targets: list[dict[str, str | int | bool]] = []
     seen: set[tuple[str, int]] = set()
 
-    for role, endpoint_list, is_primary in (
-        ("Primary", relation.endpoints or "", True),
-        ("Read-only", relation.read_only_endpoints, False),
-    ):
-        for endpoint in endpoint_list.split(","):
-            parsed_endpoint = _split_endpoint(endpoint)
-            if parsed_endpoint is None:
-                continue
-            host, port = parsed_endpoint
-            if (host, port) in seen:
-                continue
+    endpoints = [
+        (endpoint, "Primary", True) for endpoint in (relation.endpoints or "").split(",")
+    ] + [(endpoint, "Read-only", False) for endpoint in relation.read_only_endpoints.split(",")]
 
-            target_id = f"{target_id_prefix}-{len(targets)}" if target_id_prefix else str(len(targets))
-            address = f"[{host}]:{port}" if ":" in host else f"{host}:{port}"
-            try:
-                target = DatabaseProbeTarget.model_validate(
-                    {
-                        "id": target_id,
-                        "host": host,
-                        "port": port,
-                        "dbname": database_name,
-                        "user": relation.username,
-                        "password": relation.password,
-                        "is_primary": is_primary,
-                    }
-                )
-            except ValidationError:
-                logger.warning("Ignoring invalid PostgreSQL endpoint: %s", endpoint.strip())
-                continue
+    for endpoint, role, is_primary in endpoints:
+        parsed_endpoint = _split_endpoint(endpoint)
+        if parsed_endpoint is None:
+            continue
+        host, port = parsed_endpoint
+        if (host, port) in seen:
+            continue
 
-            seen.add((host, port))
-            monitors.append(
+        target_id = f"{target_id_prefix}-{len(targets)}" if target_id_prefix else str(len(targets))
+        address = f"[{host}]:{port}" if ":" in host else f"{host}:{port}"
+        try:
+            target = DatabaseProbeTarget.model_validate(
                 {
-                    "id": target.id,
-                    "name": f"{monitor_prefix} {role} ({address})",
+                    "id": target_id,
+                    "host": host,
+                    "port": port,
+                    "dbname": database_name,
+                    "user": relation.username,
+                    "password": relation.password,
                     "is_primary": is_primary,
                 }
             )
-            targets.append(target.model_dump())
+        except ValidationError:
+            logger.warning("Ignoring invalid PostgreSQL endpoint: %s", endpoint.strip())
+            continue
+
+        seen.add((host, port))
+        monitors.append(
+            {
+                "id": target.id,
+                "name": f"{monitor_prefix} {role} ({address})",
+                "is_primary": is_primary,
+            }
+        )
+        targets.append(target.model_dump())
 
     return monitors, targets
