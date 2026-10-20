@@ -77,9 +77,9 @@ def build_database_monitors(
     targets: list[dict[str, str | int | bool]] = []
     seen: set[tuple[str, int]] = set()
 
-    endpoints = [
-        (endpoint, "Primary", True) for endpoint in (relation.endpoints or "").split(",")
-    ] + [(endpoint, "Read-only", False) for endpoint in relation.read_only_endpoints.split(",")]
+    endpoints = [(endpoint, "Primary", True) for endpoint in (relation.endpoints or "").split(",")] + [
+        (endpoint, "Read-only", False) for endpoint in relation.read_only_endpoints.split(",")
+    ]
 
     for endpoint, role, is_primary in endpoints:
         parsed_endpoint = _split_endpoint(endpoint)
