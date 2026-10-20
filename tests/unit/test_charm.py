@@ -462,7 +462,7 @@ def test_database_monitor_targets_use_primary_and_replica_endpoints():
         model=SimpleNamespace(
             relations={
                 "postgresql": [],
-                "postgresql_monitor": [SimpleNamespace(id=32)],
+                "postgresql_monitor": [SimpleNamespace(id=32, app=None)],
             }
         ),
         app=SimpleNamespace(name="gatus"),
@@ -494,7 +494,7 @@ def test_database_monitor_builder_validates_ports_and_formats_ipv6():
     assert monitors == [
         {
             "id": "0",
-            "name": "PostgreSQL Primary ([2001:db8::61]:5432) [gatus]",
+            "name": "gatus Primary ([2001:db8::61]:5432)",
             "is_primary": True,
         }
     ]
@@ -520,7 +520,7 @@ def test_database_monitor_targets_refresh_when_relation_changes_or_is_removed():
         model=SimpleNamespace(
             relations={
                 "postgresql": [],
-                "postgresql_monitor": [SimpleNamespace(id=32)],
+                "postgresql_monitor": [SimpleNamespace(id=32, app=None)],
             }
         ),
         app=SimpleNamespace(name="gatus"),
@@ -536,13 +536,14 @@ def test_database_monitor_targets_refresh_when_relation_changes_or_is_removed():
             "password": "hidden-password",  # nosec B105
         }
     }
-    charm.model.relations["postgresql_monitor"] = [SimpleNamespace(id=33)]
+    charm.model.relations["postgresql_monitor"] = [SimpleNamespace(id=33, app=None)]
     updated_monitors, _ = GatusCharm._database_monitor_targets(cast(GatusCharm, charm))
     database.fetch_relation_data.return_value = {}
     charm.model.relations["postgresql_monitor"] = []
     removed_monitors, removed_targets = GatusCharm._database_monitor_targets(cast(GatusCharm, charm))
 
     assert "10.146.72.61" in str(first_monitors[0]["name"])
+    assert str(first_monitors[0]["name"]) == "gatus Primary (10.146.72.61:5432)"
     assert "10.146.72.62" in str(updated_monitors[0]["name"])
     assert removed_monitors == []
     assert removed_targets == []
@@ -575,8 +576,8 @@ def test_database_monitor_targets_include_each_external_relation_with_unique_ids
             relations={
                 "postgresql": [],
                 "postgresql_monitor": [
-                    SimpleNamespace(id=41),
-                    SimpleNamespace(id=42),
+                    SimpleNamespace(id=41, app=SimpleNamespace(name="dbaas-stg-jira-data-sink")),
+                    SimpleNamespace(id=42, app=SimpleNamespace(name="dbaas-stg-data-mesh-el-salesforce")),
                 ],
             }
         ),
@@ -603,6 +604,14 @@ def test_database_monitor_targets_include_each_external_relation_with_unique_ids
         True,
         False,
         False,
+    ]
+    assert [str(monitor["name"]) for monitor in monitors] == [
+        "dbaas-stg-jira-data-sink Primary (10.0.0.1:5432)",
+        "dbaas-stg-jira-data-sink Read-only (10.0.0.2:5432)",
+        "dbaas-stg-jira-data-sink Read-only (10.0.0.3:5432)",
+        "dbaas-stg-data-mesh-el-salesforce Primary (10.0.1.1:5432)",
+        "dbaas-stg-data-mesh-el-salesforce Read-only (10.0.1.2:5432)",
+        "dbaas-stg-data-mesh-el-salesforce Read-only (10.0.1.3:5432)",
     ]
     assert len(targets) == 6
     monitor_database.fetch_relation_data.assert_called_with(

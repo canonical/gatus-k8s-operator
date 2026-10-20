@@ -56,7 +56,10 @@ def _split_endpoint(endpoint: str) -> tuple[str, int] | None:
 
 
 def build_database_monitors(
-    databag: dict[str, str], default_database: str, target_id_prefix: str = ""
+    databag: dict[str, str],
+    default_database: str,
+    target_id_prefix: str = "",
+    application_name: str | None = None,
 ) -> tuple[list[dict[str, str | bool]], list[dict[str, str | int | bool]]]:
     """Build public monitor metadata and private probe targets from one relation."""
     try:
@@ -69,13 +72,14 @@ def build_database_monitors(
         return [], []
 
     database_name = relation.database or default_database
+    monitor_prefix = application_name or database_name
     monitors: list[dict[str, str | bool]] = []
     targets: list[dict[str, str | int | bool]] = []
     seen: set[tuple[str, int]] = set()
 
     for role, endpoint_list, is_primary in (
         ("Primary", relation.endpoints or "", True),
-        ("Read-only replica", relation.read_only_endpoints, False),
+        ("Read-only", relation.read_only_endpoints, False),
     ):
         for endpoint in endpoint_list.split(","):
             parsed_endpoint = _split_endpoint(endpoint)
@@ -107,7 +111,7 @@ def build_database_monitors(
             monitors.append(
                 {
                     "id": target.id,
-                    "name": f"PostgreSQL {role} ({address}) [{database_name}]",
+                    "name": f"{monitor_prefix} {role} ({address})",
                     "is_primary": is_primary,
                 }
             )

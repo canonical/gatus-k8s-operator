@@ -85,6 +85,11 @@ class GatusCharm(paas_charm.go.Charm):
             for relation in self.model.relations.get("postgresql_monitor", [])
             if relation.id not in self._broken_monitor_relation_ids
         ]
+        relation_names = {
+            relation.id: relation.app.name
+            for relation in self.model.relations.get("postgresql_monitor", [])
+            if relation.id in monitor_relation_ids and relation.app is not None
+        }
         if monitor_relation_ids:
             relation_data = self._monitor_database_requirer.fetch_relation_data(
                 relation_ids=monitor_relation_ids,
@@ -94,7 +99,10 @@ class GatusCharm(paas_charm.go.Charm):
                 if relation_id not in monitor_relation_ids:
                     continue
                 relation_monitors, relation_targets = build_database_monitors(
-                    databag, self.app.name, f"monitor-{relation_id}"
+                    databag,
+                    self.app.name,
+                    f"monitor-{relation_id}",
+                    relation_names.get(relation_id),
                 )
                 monitors.extend(relation_monitors)
                 targets.extend(relation_targets)
