@@ -28,7 +28,7 @@ unit = [
     "fastapi==0.115.12",
     "jinja2",
     "ops[testing]",
-    "paas-charm>=1.9.1",
+    "paas-charm>=1.11.2",
     "pytest",
 ]
 # Dependencies of integration tests
