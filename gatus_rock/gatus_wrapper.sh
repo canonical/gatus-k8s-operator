@@ -19,6 +19,7 @@ export GATUS_CONFIG_PATH=/config
 gatus_pid=$!
 
 # Forward shutdown and preserve the exit status of the first process to stop.
+# shellcheck disable=SC2317  # Invoked indirectly via trap.
 cleanup() {
     kill "$probe_pid" "$gatus_pid" 2>/dev/null || true
     wait "$probe_pid" "$gatus_pid" 2>/dev/null || true
