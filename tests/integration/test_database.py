@@ -37,7 +37,9 @@ def test_db_relation(deployed_charm: pathlib.Path, juju: jubilant.Juju):
     # Add the charm relations
     juju.integrate(f"{PG_APP_NAME}:certificates", f"{SELF_SIGNED_CERT_APP_NAME}:certificates")
     juju.wait(jubilant.all_active, timeout=600, delay=30)
-    juju.integrate(APP_NAME, PG_APP_NAME)
+    juju.integrate(f"{APP_NAME}:postgresql", f"{PG_APP_NAME}:database")
+    juju.wait(jubilant.all_active, timeout=600, delay=30)
+    juju.integrate(f"{APP_NAME}:postgresql_monitor", f"{PG_APP_NAME}:database")
     juju.wait(jubilant.all_active, timeout=600, delay=30)
 
     # Check that the charms resolve after the relations
