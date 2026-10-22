@@ -2,8 +2,11 @@
 # See LICENSE file for licensing details.
 #
 # To learn more about testing, see https://documentation.ubuntu.com/ops/latest/explanation/testing/
+import json
 import logging
 import pathlib
+import shlex
+import time
 
 import jubilant
 
@@ -54,3 +57,56 @@ def test_db_relation(deployed_charm: pathlib.Path, juju: jubilant.Juju):
     assert "postgresql-k8s-primary" in config.storage.path
     assert config.endpoints is not None
     assert any(endpoint.name.startswith(f"{PG_APP_NAME} Primary (") for endpoint in config.endpoints)
+
+    probe_urls = [
+        endpoint.url
+        for endpoint in config.endpoints
+        if endpoint.name.startswith(f"{PG_APP_NAME} Primary (") and "/health/" in endpoint.url
+    ]
+    assert probe_urls, "no db_probe endpoint found in the gatus config"
+    probe_url = probe_urls[0]
+
+    # Healthy database: the probe reports ok
+    status_code, body = _wait_for_probe_status(juju, probe_url, expected=200)
+    assert status_code == 200, body
+    assert body["status"] == "ok"
+    assert body["in_recovery"] is False
+
+    # Unhealthy database: stop PostgreSQL and expect the probe to report an error
+    juju.ssh(f"{PG_APP_NAME}/0", "pebble stop postgresql", container="postgresql")
+    try:
+        status_code, body = _wait_for_probe_status(juju, probe_url, expected=503)
+        assert status_code == 503
+        assert body == {"status": "error"}
+    finally:
+        juju.ssh(f"{PG_APP_NAME}/0", "pebble start postgresql", container="postgresql")
+
+    # The probe recovers once the database is back
+    status_code, body = _wait_for_probe_status(juju, probe_url, expected=200)
+    assert status_code == 200, body
+    assert body["status"] == "ok"
+
+
+def _query_probe(juju: jubilant.Juju, url: str) -> tuple[int, dict]:
+    """Query the db_probe from inside the gatus container and return the status code and JSON body."""
+    script = (
+        "import json, urllib.request, urllib.error\n"
+        "try:\n"
+        f"    r = urllib.request.urlopen({url!r}, timeout=10); code, raw = r.status, r.read()\n"
+        "except urllib.error.HTTPError as e:\n"
+        "    code, raw = e.code, e.read()\n"
+        "print(json.dumps({'code': code, 'body': json.loads(raw)}))\n"
+    )
+    output = juju.ssh(APP_NAME + "/0", f"python3 -c {shlex.quote(script)}", container="app")
+    result = json.loads(output.strip().splitlines()[-1])
+    return result["code"], result["body"]
+
+
+def _wait_for_probe_status(juju: jubilant.Juju, url: str, expected: int, timeout: int = 300) -> tuple[int, dict]:
+    """Poll the db_probe until it returns the expected status code or the timeout expires."""
+    deadline = time.monotonic() + timeout
+    while True:
+        status_code, body = _query_probe(juju, url)
+        if status_code == expected or time.monotonic() > deadline:
+            return status_code, body
+        time.sleep(10)
