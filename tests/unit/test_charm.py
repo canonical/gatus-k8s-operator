@@ -587,31 +587,37 @@ def test_database_monitor_targets_include_each_external_relation_with_unique_ids
 
     monitors, targets = GatusCharm._database_monitor_targets(cast(GatusCharm, charm))
 
-    assert len(monitors) == 6
-    assert len({monitor["id"] for monitor in monitors}) == 6
-    assert [monitor["id"] for monitor in monitors] == [
-        "monitor-41-0",
-        "monitor-41-1",
-        "monitor-41-2",
-        "monitor-42-0",
-        "monitor-42-1",
-        "monitor-42-2",
-    ]
-    assert [monitor["is_primary"] for monitor in monitors] == [
-        True,
-        False,
-        False,
-        True,
-        False,
-        False,
-    ]
-    assert [str(monitor["name"]) for monitor in monitors] == [
-        "dbaas-stg-jira-data-sink Primary (10.0.0.1:5432)",
-        "dbaas-stg-jira-data-sink Read-only (10.0.0.2:5432)",
-        "dbaas-stg-jira-data-sink Read-only (10.0.0.3:5432)",
-        "dbaas-stg-data-mesh-el-salesforce Primary (10.0.1.1:5432)",
-        "dbaas-stg-data-mesh-el-salesforce Read-only (10.0.1.2:5432)",
-        "dbaas-stg-data-mesh-el-salesforce Read-only (10.0.1.3:5432)",
+    assert monitors == [
+        {
+            "id": "monitor-41-0",
+            "name": "dbaas-stg-jira-data-sink Primary (10.0.0.1:5432)",
+            "is_primary": True,
+        },
+        {
+            "id": "monitor-41-1",
+            "name": "dbaas-stg-jira-data-sink Read-only (10.0.0.2:5432)",
+            "is_primary": False,
+        },
+        {
+            "id": "monitor-41-2",
+            "name": "dbaas-stg-jira-data-sink Read-only (10.0.0.3:5432)",
+            "is_primary": False,
+        },
+        {
+            "id": "monitor-42-0",
+            "name": "dbaas-stg-data-mesh-el-salesforce Primary (10.0.1.1:5432)",
+            "is_primary": True,
+        },
+        {
+            "id": "monitor-42-1",
+            "name": "dbaas-stg-data-mesh-el-salesforce Read-only (10.0.1.2:5432)",
+            "is_primary": False,
+        },
+        {
+            "id": "monitor-42-2",
+            "name": "dbaas-stg-data-mesh-el-salesforce Read-only (10.0.1.3:5432)",
+            "is_primary": False,
+        },
     ]
     assert len(targets) == 6
     monitor_database.fetch_relation_data.assert_called_with(
