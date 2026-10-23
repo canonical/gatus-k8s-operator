@@ -14,10 +14,15 @@ juju deploy gatus-k8s --channel=edge
 
 ## Configuration
 
-### 1. Postgresql relation
-Run: 
+### Postgresql relation
+Gatus requires TLS on the database connection, so PostgreSQL must be integrated
+with a TLS certificates provider such as `self-signed-certificates` (only for local testing).
+
+Run:
 
 ```sh
+juju deploy self-signed-certificates
+juju integrate postgresql-k8s:client-certificates self-signed-certificates
 juju integrate gatus-k8s postgresql-k8s
 ```
 The charm automatically generates a few environment variables, 
@@ -27,7 +32,7 @@ a `storage.yaml` file is created with the appropriate values.
 If the Postgresql relation is not present, no `storage.yaml` file is created,
 and Gatus defaults to in-memory execution.
 
-### 2. Endpoints and announcements
+### Endpoints and announcements
 These are charm configs that take YAML files as input.
 Check `tests/data/[endpoints|announcements].yaml` for examples.
 
@@ -36,7 +41,7 @@ juju config gatus-k8s announcements=@./tests/data/announcements.yaml
 juju config gatus-k8s endpoints=@./tests/data/endpoints.yaml
 ```
 
-### 3. Alerting
+### Alerting
 Currently, the charm supports Mattermost alerting.
 
 Since alerts use webhook URLs that can be sensitive (anyone with the URL can send a message),
@@ -75,7 +80,7 @@ endpoints:
 
 The charm will automatically replace the `[webhook-url:channel-name]` placeholders with the actual webhook URLs.
 
-### 4. OIDC authentication
+### OIDC authentication
 
 The charm supports OIDC authentication via a relation to a charm offering the `oauth` interface, such as [hydra](https://charmhub.io/hydra).
 
@@ -90,6 +95,19 @@ Optionally, a list of authorized users can be added via the `oidc-allowed-subjec
 
 The full setup of an OIDC authentication flow is out of scope for this README.
 For more information about the Canonical Identity Platform, see relevant [documentation](https://canonical-identity.readthedocs-hosted.com/reference/canonical-identity-platform-architecture/).
+
+### Database health monitoring
+
+This charm exposes a `postgresql_monitor` relation, using the standard `postgresql_client` interface.
+Multiple Postgresql applications can be related to this charm, and the charm will monitor the health of all of them.
+
+```sh
+juju relate gatus-k8s:postgresql_monitor postgresql-k8s
+```
+
+When this relation is set, each unit will appear as an endpoint under the `Database` group of the UI.
+The database probe checks if the primary database is accepting write connections and if all
+replicas are accepting read connections.
 
 ## Development and testing
 

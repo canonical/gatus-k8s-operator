@@ -1,0 +1,16 @@
+endpoints:
+{% for monitor in monitors %}
+  - name: {{ monitor.name | tojson }}
+    group: Database
+    url: http://127.0.0.1:9090/health/{{ monitor.id }}
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+{% if monitor.is_primary %}
+      - "[BODY].transaction_read_only == false"
+      - "[BODY].in_recovery == false"
+{% else %}
+      - "[BODY].transaction_read_only == true"
+      - "[BODY].in_recovery == true"
+{% endif %}
+{% endfor %}

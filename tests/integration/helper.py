@@ -40,6 +40,7 @@ def get_config(juju: jubilant.Juju) -> GatusConfig:
         "alerting",
         "announcements",
         "endpoints",
+        "db-monitor",
     ]
     # Retrieve the config files from the container
     for config_file in config_files:
@@ -56,10 +57,15 @@ def get_config(juju: jubilant.Juju) -> GatusConfig:
             # Skip the config if it doesn't exist
             logger.info("%s config not found", config_file)
 
-    config_string = "\n".join(configs)
-
     try:
-        config = yaml.safe_load(config_string)
+        config = {}
+        for config_string in configs:
+            file_config = yaml.safe_load(config_string)
+            for key, value in file_config.items():
+                if key == "endpoints" and key in config:
+                    config[key].extend(value)
+                else:
+                    config[key] = value
         gatus_config: GatusConfig = GatusConfig.model_validate(config)
 
         logger.info("Gatus application config:")
