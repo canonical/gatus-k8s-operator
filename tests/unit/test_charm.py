@@ -620,10 +620,13 @@ def test_database_monitor_targets_include_each_external_relation_with_unique_ids
         },
     ]
     assert len(targets) == 6
-    monitor_database.fetch_relation_data.assert_called_with(
-        relation_ids=[41, 42],
-        fields=["database", "endpoints", "password", "read-only-endpoints", "username"],
-    )
+    assert [call.kwargs for call in monitor_database.fetch_relation_data.call_args_list] == [
+        {
+            "relation_ids": [relation_id],
+            "fields": ["database", "endpoints", "password", "read-only-endpoints", "username"],
+        }
+        for relation_id in [41, 42]
+    ]
 
     relation_data[42]["read-only-endpoints"] = "10.0.1.4:5432,10.0.1.5:5432"
     updated_monitors, _ = GatusCharm._database_monitor_targets(cast(GatusCharm, charm))
@@ -638,3 +641,49 @@ def test_database_monitor_targets_include_each_external_relation_with_unique_ids
     assert len(remaining_targets) == 3
     assert all(str(monitor["id"]).startswith("monitor-42-") for monitor in remaining_monitors)
     assert charm.restart.call_count == 1
+
+
+def test_database_monitor_targets_skip_broken_relation_and_keep_healthy_relation(caplog):
+    monitor_database = Mock()
+    monitor_database.fetch_relation_data.side_effect = [
+        RuntimeError("relation data is unavailable"),
+        {
+            42: {
+                "database": "analytics",
+                "endpoints": "10.0.1.1:5432",
+                "read-only-endpoints": "10.0.1.2:5432",
+                "username": "analytics-user",
+                "password": "analytics-password",  # nosec B105
+            }
+        },
+    ]
+    charm = SimpleNamespace(
+        _monitor_database_requirer=monitor_database,
+        _broken_monitor_relation_ids=set(),
+        model=SimpleNamespace(
+            relations={
+                "postgresql_monitor": [
+                    SimpleNamespace(id=41, app=SimpleNamespace(name="broken-db")),
+                    SimpleNamespace(id=42, app=SimpleNamespace(name="healthy-db")),
+                ]
+            }
+        ),
+        app=SimpleNamespace(name="gatus"),
+    )
+
+    monitors, targets = GatusCharm._database_monitor_targets(cast(GatusCharm, charm))
+
+    assert monitors == [
+        {
+            "id": "monitor-42-0",
+            "name": "healthy-db Primary (10.0.1.1:5432)",
+            "is_primary": True,
+        },
+        {
+            "id": "monitor-42-1",
+            "name": "healthy-db Read-only (10.0.1.2:5432)",
+            "is_primary": False,
+        },
+    ]
+    assert [target["host"] for target in targets] == ["10.0.1.1", "10.0.1.2"]
+    assert "Skipping PostgreSQL monitor relation 41" in caplog.text
