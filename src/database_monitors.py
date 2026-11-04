@@ -68,7 +68,22 @@ def build_database_monitors(
         logger.warning("Ignoring invalid PostgreSQL relation data")
         return [], []
 
-    if not all((relation.endpoints, relation.username, relation.password)):
+    missing_fields = [
+        field
+        for field, value in (
+            ("endpoints", relation.endpoints),
+            ("username", relation.username),
+            ("password", relation.password),
+        )
+        if not value
+    ]
+    if missing_fields:
+        relation_id = f" {target_id_prefix}" if target_id_prefix else ""
+        logger.warning(
+            "Ignoring PostgreSQL relation%s without required fields: %s",
+            relation_id,
+            ", ".join(missing_fields),
+        )
         return [], []
 
     database_name = relation.database or default_database

@@ -503,6 +503,14 @@ def test_database_monitor_builder_validates_ports_and_formats_ipv6():
     assert "hidden-password" not in json.dumps(monitors)
 
 
+def test_database_monitor_builder_logs_missing_relation_fields(caplog):
+    monitors, targets = build_database_monitors({"database": "gatus"}, "gatus")
+
+    assert monitors == []
+    assert targets == []
+    assert "without required fields: endpoints, username, password" in caplog.text
+
+
 def test_database_monitor_targets_refresh_when_relation_changes_or_is_removed():
     database = Mock()
     database.fetch_relation_data.return_value = {
