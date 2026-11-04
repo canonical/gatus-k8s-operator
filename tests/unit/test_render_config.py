@@ -3,6 +3,7 @@
 
 """Unit tests for render_config.py — the Jinja-based Gatus config renderer."""
 
+import json
 import textwrap
 from pathlib import Path
 
@@ -187,6 +188,57 @@ def test_endpoints_yaml_raw_passthrough_when_set(tmp_path):
     env = {"APP_ENDPOINTS": raw}
     files = _render(tmp_path, env)
     assert files["endpoints.yaml"].read_text() == raw
+
+
+# ---------------------------------------------------------------------------
+# db-monitor.yaml — conditional on database monitors
+# ---------------------------------------------------------------------------
+
+
+def test_db_monitor_yaml_absent_without_database_relation(tmp_path):
+    files = _render(tmp_path, {})
+    assert "db-monitor.yaml" not in files
+
+
+def test_db_monitor_yaml_contains_only_http_endpoints(tmp_path):
+    monitors = [
+        {
+            "id": "0",
+            "name": "PostgreSQL Primary (10.146.72.61:5432) [gatus]",
+            "is_primary": True,
+        },
+        {
+            "id": "1",
+            "name": "PostgreSQL Read-only replica (10.146.72.55:5432) [gatus]",
+            "is_primary": False,
+        },
+    ]
+    files = _render(tmp_path, {"APP_DB_MONITORS": json.dumps(monitors)})
+
+    assert "db-monitor.yaml" in files
+    doc = yaml.safe_load(files["db-monitor.yaml"].read_text())
+    assert len(doc["endpoints"]) == 2
+    assert doc["endpoints"][0]["url"] == "http://127.0.0.1:9090/health/0"
+    assert doc["endpoints"][0]["conditions"] == [
+        "[STATUS] == 200",
+        "[BODY].transaction_read_only == false",
+        "[BODY].in_recovery == false",
+    ]
+    assert doc["endpoints"][1]["conditions"] == [
+        "[STATUS] == 200",
+        "[BODY].transaction_read_only == true",
+        "[BODY].in_recovery == true",
+    ]
+    assert "password" not in files["db-monitor.yaml"].read_text()
+
+
+def test_db_monitor_yaml_removed_when_relation_has_no_monitors(tmp_path):
+    monitor_file = tmp_path / "db-monitor.yaml"
+    monitor_file.write_text("endpoints: []\n")
+
+    _render(tmp_path, {"APP_DB_MONITORS": "[]"})
+
+    assert not monitor_file.exists()
 
 
 # ---------------------------------------------------------------------------

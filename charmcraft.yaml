@@ -136,6 +136,9 @@ requires:
     interface: postgresql_client
     optional: true
     limit: 1
+  postgresql_monitor:
+    interface: postgresql_client
+    optional: true
   oidc:
     interface: oauth
     optional: true

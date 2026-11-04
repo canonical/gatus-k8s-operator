@@ -4,11 +4,12 @@
 
 """Charm the application."""
 
+import json
 import logging
-import typing
 
 import ops
 import paas_charm.go
+from charms.data_platform_libs.v0.data_interfaces import DatabaseRequires
 from ops.model import ActiveStatus, BlockedStatus, ModelError, SecretNotFoundError
 from paas_charm.app import App
 
@@ -16,6 +17,7 @@ from constants import (
     MATTERMOST_ALERTING_CONFIG,
     WEBHOOK_URL_PLACEHOLDER_RE,
 )
+from database_monitors import build_database_monitors
 from exceptions import SecretAccessPendingError
 from validator import GatusValidator
 
@@ -25,16 +27,99 @@ logger = logging.getLogger(__name__)
 class GatusCharm(paas_charm.go.Charm):
     """Go Charm service."""
 
-    def __init__(self, *args: typing.Any) -> None:
+    def __init__(self, framework: ops.Framework) -> None:
         """Initialize the instance.
 
         Args:
-            args: passthrough to CharmBase.
+            framework: Ops framework.
 
         """
-        super().__init__(*args)
+        requires = framework.meta.requires
+        monitor_relation = requires.get("postgresql_monitor")
+        if monitor_relation is not None:
+            # PaaS Charm keys database requirers by interface, so duplicate interfaces collide.
+            framework.meta.requires = {
+                name: relation for name, relation in requires.items() if name != "postgresql_monitor"
+            }
+        try:
+            super().__init__(framework)
+        finally:
+            if monitor_relation is not None:
+                framework.meta.requires = requires
+
+        self._broken_monitor_relation_ids: set[int] = set()
+        self._monitor_database_requirer = DatabaseRequires(
+            self,
+            relation_name="postgresql_monitor",
+            database_name=self.app.name,
+        )
+        for event_source in (
+            self._monitor_database_requirer.on.database_created,
+            self._monitor_database_requirer.on.endpoints_changed,
+            self._monitor_database_requirer.on.read_only_endpoints_changed,
+        ):
+            self.framework.observe(event_source, self._on_database_monitor_relation_changed)
+        self.framework.observe(
+            self.on["postgresql_monitor"].relation_broken,
+            self._on_monitor_database_relation_broken,
+        )
 
         self.unit.status = GatusValidator.validate(self.model.config)
+
+    def _database_monitor_targets(
+        self,
+    ) -> tuple[list[dict[str, str | bool]], list[dict[str, str | int | bool]]]:
+        """Return public monitor metadata and private database probe targets."""
+        monitors: list[dict[str, str | bool]] = []
+        targets: list[dict[str, str | int | bool]] = []
+        fields = [
+            "database",
+            "endpoints",
+            "password",
+            "read-only-endpoints",
+            "username",
+        ]
+
+        for relation in self.model.relations.get("postgresql_monitor", []):
+            relation_id = relation.id
+            if relation_id in self._broken_monitor_relation_ids:
+                continue
+
+            try:
+                relation_data = self._monitor_database_requirer.fetch_relation_data(
+                    relation_ids=[relation_id],
+                    fields=fields,
+                ).get(relation_id)
+                if relation_data is None:
+                    continue
+
+                relation_monitors, relation_targets = build_database_monitors(
+                    relation_data,
+                    self.app.name,
+                    f"monitor-{relation_id}",
+                    relation.app.name if relation.app is not None else None,
+                )
+            except Exception as error:
+                logger.warning(
+                    "Skipping PostgreSQL monitor relation %s after %s",
+                    relation_id,
+                    type(error).__name__,
+                )
+                continue
+
+            monitors.extend(relation_monitors)
+            targets.extend(relation_targets)
+
+        return monitors, targets
+
+    def _on_database_monitor_relation_changed(self, _: ops.EventBase) -> None:
+        """Refresh generated monitors when database credentials or endpoints change."""
+        self.restart()
+
+    def _on_monitor_database_relation_broken(self, event: ops.RelationBrokenEvent) -> None:
+        """Remove monitors for a PostgreSQL monitoring relation that has been removed."""
+        self._broken_monitor_relation_ids.add(event.relation.id)
+        self.restart()
 
     def restart(self, rerun_migrations: bool = False) -> None:
         """Override the default restart to add a validation guard."""
@@ -186,6 +271,10 @@ class GatusCharm(paas_charm.go.Charm):
             env["MATTERMOST_WEBHOOK_URL"] = webhook_url or ""
             # Process the endpoints config, resolving placeholders
             env["APP_ENDPOINTS"] = endpoints or ""
+
+            monitors, probe_targets = self._database_monitor_targets()
+            env["APP_DB_MONITORS"] = json.dumps(monitors)
+            env["DB_PROBE_TARGETS"] = json.dumps(probe_targets)
 
             # Set the Gatus application log level
             log_level = str(self.model.config["log-level"])

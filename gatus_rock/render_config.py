@@ -4,6 +4,7 @@
 
 """Render Gatus configuration files from Jinja2 templates."""
 
+import json
 import logging
 import os
 from pathlib import Path
@@ -106,6 +107,19 @@ def render_configs(config_dir: Path, templates_dir: Path, env: dict) -> None:
         write(config_dir / "endpoints.yaml", endpoints)
     else:
         write(config_dir / "endpoints.yaml", render("endpoints.yaml.j2", {}))
+
+    database_monitors = env.get("APP_DB_MONITORS", "")
+    if database_monitors:
+        monitors = json.loads(database_monitors)
+        if monitors:
+            write(
+                config_dir / "db-monitor.yaml",
+                render("db-monitor.yaml.j2", {"monitors": monitors}),
+            )
+        else:
+            remove(config_dir / "db-monitor.yaml")
+    else:
+        remove(config_dir / "db-monitor.yaml")
 
     # Security (OIDC) — created only when the full required env set is present.
     client_id = env.get("APP_OIDC_CLIENT_ID", "")
