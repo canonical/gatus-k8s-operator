@@ -1,0 +1,7 @@
+alerting:
+  mattermost:
+    webhook-url: {{ webhook_url }}
+{% if insecure %}
+    client:
+      insecure: true
+{% endif %}
