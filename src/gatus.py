@@ -49,7 +49,8 @@ class Mattermost(BaseModel):
 class Alerting(BaseModel):
     """Configuration for Gatus alerting."""
 
-    mattermost: Mattermost
+    mattermost: Mattermost | None = None
+    custom: dict | None = None
 
 
 class ProviderOverride(BaseModel):
