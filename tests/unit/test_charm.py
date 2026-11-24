@@ -55,6 +55,7 @@ def test_gatus_config():
     assert gatus_config.announcements[0].message == "Scheduled maintenance on database servers from 14:00 to 16:00 UTC"
 
     assert gatus_config.alerting is not None
+    assert gatus_config.alerting.mattermost is not None
     assert gatus_config.alerting.mattermost.webhook_url == "http://localhost:8080/hooks/xxx"
 
     assert gatus_config.endpoints is not None
@@ -71,6 +72,37 @@ def test_gatus_config():
     assert gatus_config.endpoints[0].alerts is not None
     assert len(gatus_config.endpoints[0].alerts) > 0
     assert gatus_config.endpoints[0].alerts[0].type == "mattermost"
+
+
+def test_gatus_config_custom_alerting_only():
+    """Test that GatusConfig accepts a custom alerting provider without mattermost."""
+    config = {
+        "alerting": {
+            "custom": {
+                "url": "https://chat.example.com/api/v4/posts",
+                "method": "POST",
+                "headers": {"Content-Type": "application/json", "Authorization": "Bearer token"},
+                "body": '{"channel_id":"abc","message":"[ALERT_TRIGGERED_OR_RESOLVED]"}',
+                "client": {"proxy-url": "http://proxy:3128"},
+            }
+        },
+        "endpoints": [
+            {
+                "name": "Example",
+                "url": "https://example.com",
+                "alerts": [{"type": "custom", "description": "example is down"}],
+            }
+        ],
+    }
+    gatus_config = GatusConfig.model_validate(config)
+    assert gatus_config.alerting is not None
+    assert gatus_config.alerting.mattermost is None
+    assert gatus_config.alerting.custom is not None
+    assert gatus_config.alerting.custom["url"] == "https://chat.example.com/api/v4/posts"
+
+    assert gatus_config.endpoints is not None
+    assert gatus_config.endpoints[0].alerts is not None
+    assert gatus_config.endpoints[0].alerts[0].type == "custom"
 
 
 def test_invalid_announcements():
